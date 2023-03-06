@@ -33,27 +33,33 @@ func TestFineTune(t *testing.T) {
 						t.Errorf("failed to list fine-tunes: %s", err)
 					} else {
 						// === RetrieveFineTune ===
-						if fineTune, err := client.RetrieveFineTune(fineTunes.Data[0].ID); err != nil {
-							t.Errorf("failed to retrieve fine-tune: %s", err)
+						numFineTunes := len(fineTunes.Data)
+						if numFineTunes <= 0 {
+							t.Errorf("there was no fine-tune")
 						} else {
-							// === ListFineTuneEvents ===
-							if events, err := client.ListFineTuneEvents(fineTune.ID, nil); err != nil {
-								t.Errorf("failed to list fine-tune events: %s", err)
+							lastFineTuneID := fineTunes.Data[numFineTunes-1].ID
+							if fineTune, err := client.RetrieveFineTune(lastFineTuneID); err != nil {
+								t.Errorf("failed to retrieve fine-tune: %s", err)
 							} else {
-								if len(events.Data) <= 0 {
-									t.Errorf("there was no returned event")
+								// === ListFineTuneEvents ===
+								if events, err := client.ListFineTuneEvents(fineTune.ID, nil); err != nil {
+									t.Errorf("failed to list fine-tune events: %s", err)
 								} else {
-									// === CancelFineTune ===
-									if canceled, err := client.CancelFineTune(fineTune.ID); err != nil {
-										t.Errorf("failed to cancel fine-tune: %s", err)
+									if len(events.Data) <= 0 {
+										t.Errorf("there was no returned event")
 									} else {
-										if canceled.ID != fineTune.ID {
-											t.Errorf("canceled fine-tune's id does not match the requested one: %s - %s", canceled.ID, fineTune.ID)
+										// === CancelFineTune ===
+										if canceled, err := client.CancelFineTune(fineTune.ID); err != nil {
+											t.Errorf("failed to cancel fine-tune: %s", err)
+										} else {
+											if canceled.ID != fineTune.ID {
+												t.Errorf("canceled fine-tune's id does not match the requested one: %s - %s", canceled.ID, fineTune.ID)
+											}
 										}
-									}
 
-									// === DeleteFineTuneModel ===
-									// TODO
+										// === DeleteFineTuneModel ===
+										// TODO
+									}
 								}
 							}
 						}
