@@ -94,6 +94,8 @@ func (o ChatCompletionOptions) SetN(n int) ChatCompletionOptions {
 
 // SetStream sets the `stream` parameter of chat completions.
 //
+// NOTE: (not implemented) https://developer.mozilla.org/en-US/docs/Web/API/Server-sent_events/Using_server-sent_events#event_stream_format
+//
 // https://platform.openai.com/docs/api-reference/chat/create#chat/create-stream
 func (o ChatCompletionOptions) SetStream(stream bool) ChatCompletionOptions {
 	o["stream"] = stream

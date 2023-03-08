@@ -60,6 +60,8 @@ func (o CompletionOptions) SetN(n int) CompletionOptions {
 
 // SetStream sets the `stream` parameter of completion request.
 //
+// NOTE: (not implemented) https://developer.mozilla.org/en-US/docs/Web/API/Server-sent_events/Using_server-sent_events#event_stream_format
+//
 // https://platform.openai.com/docs/api-reference/completions/create#completions/create-stream
 func (o CompletionOptions) SetStream(stream bool) CompletionOptions {
 	o["stream"] = stream
