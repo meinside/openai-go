@@ -42,6 +42,8 @@ $ go test
 
 ## Todos/WIP
 
+### Implemented
+
 All API functions so far (2023.03.06.) are implemented, but not all of them were tested on a paid account.
 
 - [X] [Models](https://platform.openai.com/docs/api-reference/models): works on a non-paid account
@@ -54,6 +56,10 @@ All API functions so far (2023.03.06.) are implemented, but not all of them were
 - [X] [Files](https://platform.openai.com/docs/api-reference/files)
 - [X] [Fine-tunes](https://platform.openai.com/docs/api-reference/fine-tunes)
 - [X] [Moderations](https://platform.openai.com/docs/api-reference/moderations): works on a non-paid account
+
+### Not implemented
+
+- [ ] Stream([server-sent events](https://developer.mozilla.org/en-US/docs/Web/API/Server-sent_events/Using_server-sent_events#event_stream_format)) options are not implemented yet.
 
 ## License
 

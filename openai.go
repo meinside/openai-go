@@ -18,8 +18,8 @@ const (
 
 // Client struct which holds its API key, Organization ID, and HTTP client.
 type Client struct {
-	APIKey       string `json:"api_key"`
-	Organization string `json:"organization"`
+	APIKey         string `json:"api_key"`
+	OrganizationID string `json:"organization_id"`
 
 	httpClient *http.Client
 
@@ -27,10 +27,10 @@ type Client struct {
 }
 
 // NewClient returns a new API client
-func NewClient(apiKey, organization string) *Client {
+func NewClient(apiKey, organizationID string) *Client {
 	return &Client{
-		APIKey:       apiKey,
-		Organization: organization,
+		APIKey:         apiKey,
+		OrganizationID: organizationID,
 
 		// for reusing http client
 		httpClient: &http.Client{
