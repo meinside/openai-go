@@ -110,7 +110,7 @@ func (c *Client) do(method, endpoint string, params map[string]any) (response []
 
 		// headers
 		req.Header.Set(kAuthorization, fmt.Sprintf("Bearer %s", c.APIKey))
-		req.Header.Set(kOrganization, c.Organization)
+		req.Header.Set(kOrganization, c.OrganizationID)
 
 		if c.Verbose {
 			if dumped, err := httputil.DumpRequest(req, true); err == nil {
@@ -215,7 +215,7 @@ func (c *Client) post(endpoint string, params map[string]any) (response []byte, 
 
 	// set authentication headers
 	req.Header.Set(kAuthorization, fmt.Sprintf("Bearer %s", c.APIKey))
-	req.Header.Set(kOrganization, c.Organization)
+	req.Header.Set(kOrganization, c.OrganizationID)
 
 	if c.Verbose {
 		if dumped, err := httputil.DumpRequest(req, true); err == nil {
