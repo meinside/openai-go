@@ -8,10 +8,10 @@ import (
 
 const (
 	// timeout seconds
-	DialTimeoutSeconds           = 60
-	KeepAliveSeconds             = 120
-	IdleConnTimeoutSeconds       = 90
-	TLSHandshakeTimeoutSeconds   = DialTimeoutSeconds
+	DialTimeoutSeconds           = 180
+	KeepAliveSeconds             = 60
+	IdleConnTimeoutSeconds       = 60
+	TLSHandshakeTimeoutSeconds   = 10
 	ResponseHeaderTimeoutSeconds = DialTimeoutSeconds
 	ExpectContinueTimeoutSeconds = 1
 )
