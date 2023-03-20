@@ -8,12 +8,12 @@ import (
 
 const (
 	// timeout seconds
-	DialTimeoutSeconds           = 180
-	KeepAliveSeconds             = 60
-	IdleConnTimeoutSeconds       = 60
-	TLSHandshakeTimeoutSeconds   = 10
-	ResponseHeaderTimeoutSeconds = DialTimeoutSeconds
-	ExpectContinueTimeoutSeconds = 1
+	DialTimeout           = 5 * 60 * time.Second
+	KeepAlive             = 60 * time.Second
+	IdleConnTimeout       = 60 * time.Second
+	TLSHandshakeTimeout   = 10 * time.Second
+	ResponseHeaderTimeout = DialTimeout
+	ExpectContinueTimeout = 1 * time.Second
 )
 
 // Client struct which holds its API key, Organization ID, and HTTP client.
@@ -36,13 +36,13 @@ func NewClient(apiKey, organizationID string) *Client {
 		httpClient: &http.Client{
 			Transport: &http.Transport{
 				DialContext: (&net.Dialer{
-					Timeout:   DialTimeoutSeconds * time.Second,
-					KeepAlive: KeepAliveSeconds * time.Second,
+					Timeout:   DialTimeout,
+					KeepAlive: KeepAlive,
 				}).DialContext,
-				IdleConnTimeout:       IdleConnTimeoutSeconds * time.Second,
-				TLSHandshakeTimeout:   TLSHandshakeTimeoutSeconds * time.Second,
-				ResponseHeaderTimeout: ResponseHeaderTimeoutSeconds * time.Second,
-				ExpectContinueTimeout: ExpectContinueTimeoutSeconds * time.Second,
+				IdleConnTimeout:       IdleConnTimeout,
+				TLSHandshakeTimeout:   TLSHandshakeTimeout,
+				ResponseHeaderTimeout: ResponseHeaderTimeout,
+				ExpectContinueTimeout: ExpectContinueTimeout,
 			},
 		},
 	}
