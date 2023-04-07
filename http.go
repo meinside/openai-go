@@ -7,7 +7,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"log"
 	"mime/multipart"
 	"net/http"
@@ -127,7 +126,7 @@ func (c *Client) do(method, endpoint string, params map[string]any) (response []
 			defer resp.Body.Close()
 		}
 		if err == nil {
-			if response, err = ioutil.ReadAll(resp.Body); err == nil {
+			if response, err = io.ReadAll(resp.Body); err == nil {
 				if c.Verbose {
 					log.Printf("API response for %s: '%s'", endpoint, string(response))
 				}
@@ -232,7 +231,7 @@ func (c *Client) post(endpoint string, params map[string]any) (response []byte, 
 		defer resp.Body.Close()
 	}
 	if err == nil {
-		if response, err = ioutil.ReadAll(resp.Body); err == nil {
+		if response, err = io.ReadAll(resp.Body); err == nil {
 			if c.Verbose {
 				log.Printf("API response for %s: '%s'", endpoint, string(response))
 			}
