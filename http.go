@@ -265,6 +265,10 @@ func getExtension(bytes []byte) string {
 	if len(types) >= 2 {
 		splitted := strings.Split(types[1], ";") // for removing subtype parameter
 		if len(splitted) >= 1 {
+			if splitted[0] == "wave" {
+				return "wav"
+			}
+
 			return splitted[0] // return subtype only
 		}
 	}
