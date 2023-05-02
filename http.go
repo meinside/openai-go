@@ -268,6 +268,9 @@ func getExtension(bytes []byte) string {
 			if splitted[0] == "wave" {
 				return "wav"
 			}
+			if splitted[0] == "octet-stream" {
+				return "mp3"
+			}
 
 			return splitted[0] // return subtype only
 		}
