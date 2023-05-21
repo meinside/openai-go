@@ -53,6 +53,7 @@ type ChatCompletionChoice struct {
 	Index        int         `json:"index"`
 	Message      ChatMessage `json:"message"`
 	FinishReason string      `json:"finish_reason"`
+	Delta        ChatMessage `json:"delta"` // Only appears in stream response`
 }
 
 // ChatCompletion struct for chat completion response
@@ -94,11 +95,11 @@ func (o ChatCompletionOptions) SetN(n int) ChatCompletionOptions {
 
 // SetStream sets the `stream` parameter of chat completions.
 //
-// NOTE: (not implemented) https://developer.mozilla.org/en-US/docs/Web/API/Server-sent_events/Using_server-sent_events#event_stream_format
+// https://developer.mozilla.org/en-US/docs/Web/API/Server-sent_events/Using_server-sent_events#event_stream_format
 //
 // https://platform.openai.com/docs/api-reference/chat/create#chat/create-stream
-func (o ChatCompletionOptions) SetStream(stream bool) ChatCompletionOptions {
-	o["stream"] = stream
+func (o ChatCompletionOptions) SetStream(cb callback) ChatCompletionOptions {
+	o["stream"] = cb
 	return o
 }
 
@@ -159,6 +160,14 @@ func (c *Client) CreateChatCompletion(model string, messages []ChatMessage, opti
 	}
 	options["model"] = model
 	options["messages"] = messages
+
+	if options["stream"] != nil {
+		cb := options["stream"].(callback)
+		options["stream"] = true
+		_, err := c.postCB("v1/chat/completions", options, cb)
+
+		return ChatCompletion{}, err
+	}
 
 	var bytes []byte
 	if bytes, err = c.post("v1/chat/completions", options); err == nil {

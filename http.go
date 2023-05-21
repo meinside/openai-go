@@ -3,6 +3,7 @@ package openai
 // types and functions for HTTP requests
 
 import (
+	"bufio"
 	"bytes"
 	"encoding/json"
 	"fmt"
@@ -26,6 +27,11 @@ const (
 	kOrganization       = "OpenAI-Organization"
 )
 
+var (
+	StreamData = []byte("data: ")
+	StreamDone = []byte("[DONE]")
+)
+
 // CommonResponse struct for responses with common properties
 type CommonResponse struct {
 	Object *string `json:"object,omitempty"`
@@ -47,6 +53,8 @@ type Usage struct {
 	TotalTokens      int `json:"total_tokens"`
 }
 
+type callback func(response ChatCompletion, done bool, err error)
+
 // err converts `Error` to `error`.
 func (e *Error) err() error {
 	es := map[string]any{
@@ -64,6 +72,29 @@ func (e *Error) err() error {
 		return fmt.Errorf(string(bytes))
 	} else {
 		return fmt.Errorf(fmt.Sprintf("%+v", es))
+	}
+}
+
+func stream(res *http.Response, cb callback) {
+	defer res.Body.Close()
+	scanner := bufio.NewScanner(res.Body)
+	for scanner.Scan() {
+		var entry ChatCompletion
+		b := scanner.Bytes()
+		switch {
+		case len(b) == 0:
+			continue
+		case bytes.HasPrefix(b, StreamData):
+			if bytes.HasSuffix(b, StreamDone) {
+				cb(entry, true, nil)
+				return
+			}
+			if err := json.Unmarshal(b[len(StreamData):], &entry); err != nil {
+				cb(entry, true, err)
+				return
+			}
+			cb(entry, false, nil)
+		}
 	}
 }
 
@@ -221,7 +252,6 @@ func (c *Client) post(endpoint string, params map[string]any) (response []byte, 
 			log.Printf("dump request:\n\n%s", string(dumped))
 		}
 	}
-
 	req.Close = true
 
 	// send request and return response bytes
@@ -247,6 +277,58 @@ func (c *Client) post(endpoint string, params map[string]any) (response []byte, 
 	return nil, err
 }
 
+// sends HTTP POST request
+func (c *Client) postCB(endpoint string, params map[string]any, cb callback) (response []byte, err error) {
+	if params == nil {
+		params = map[string]any{}
+	}
+	apiURL := fmt.Sprintf("%s/%s", baseURL, endpoint)
+
+	var req *http.Request
+	// application/json
+	var serialized []byte
+	if serialized, err = json.Marshal(params); err == nil {
+		if req, err = http.NewRequest(http.MethodPost, apiURL, bytes.NewBuffer(serialized)); err != nil {
+			return nil, fmt.Errorf("failed to create application/json request: %s", err)
+		}
+
+		// set content-type header
+		req.Header.Set(kContentType, defaultContentType)
+	}
+
+	// set authentication headers
+	req.Header.Set(kAuthorization, fmt.Sprintf("Bearer %s", c.APIKey))
+	req.Header.Set(kOrganization, c.OrganizationID)
+
+	if c.Verbose {
+		if dumped, err := httputil.DumpRequest(req, true); err == nil {
+			log.Printf("dump request:\n\n%s", string(dumped))
+		}
+	}
+
+	// send request and return response bytes
+	var resp *http.Response
+	resp, err = c.httpClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	if resp.StatusCode >= 400 {
+		defer resp.Body.Close()
+		errbody := struct {
+			Error Error `json:"error"`
+		}{}
+		if err := json.NewDecoder(resp.Body).Decode(&errbody); err != nil {
+			return nil, fmt.Errorf("failed to decode error body: %v", err)
+		}
+		return nil, errbody.Error.err()
+
+	}
+
+	go stream(resp, cb)
+
+	return nil, nil
+}
+
 // checks if given params include any file param
 func hasFileInParams(params map[string]any) bool {
 	for _, v := range params {
@@ -267,6 +349,9 @@ func getExtension(bytes []byte) string {
 		if len(splitted) >= 1 {
 			if splitted[0] == "wave" {
 				return "wav"
+			}
+			if splitted[0] == "octet-stream" {
+				return "mp3"
 			}
 
 			return splitted[0] // return subtype only
