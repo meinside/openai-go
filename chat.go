@@ -53,7 +53,7 @@ type ChatCompletionChoice struct {
 	Index        int         `json:"index"`
 	Message      ChatMessage `json:"message"`
 	FinishReason string      `json:"finish_reason"`
-	Delta        ChatMessage `json:"delta"` // Only appears in stream response`
+	Delta        ChatMessage `json:"delta"` // Only appears in stream response
 }
 
 // ChatCompletion struct for chat completion response
