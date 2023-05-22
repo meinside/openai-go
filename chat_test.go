@@ -1,6 +1,7 @@
 package openai
 
 import (
+	"log"
 	"os"
 	"testing"
 )
@@ -28,5 +29,36 @@ func TestChatCompletions(t *testing.T) {
 		if len(created.Choices) <= 0 {
 			t.Errorf("there was no returned choice")
 		}
+	}
+
+	// === CreateChatCompletion (stream) ===
+	type completion struct {
+		response ChatCompletion
+		done     bool
+		err      error
+	}
+	ch := make(chan completion, 1)
+	if _, err := client.CreateChatCompletion(chatCompletionModel,
+		[]ChatMessage{NewChatUserMessage("Hello!")},
+		ChatCompletionOptions{}.
+			SetStream(func(response ChatCompletion, done bool, err error) {
+				ch <- completion{response: response, done: done, err: err}
+				if done {
+					close(ch)
+				}
+			})); err == nil {
+		for comp := range ch {
+			if comp.err == nil {
+				if client.Verbose {
+					if !comp.done {
+						log.Printf("stream response = %s", comp.response.Choices[0].Delta.Content)
+					}
+				}
+			} else {
+				t.Errorf("there was an error in response stream: %s", comp.err)
+			}
+		}
+	} else {
+		t.Errorf("failed to create chat completion with stream: %s", err)
 	}
 }
