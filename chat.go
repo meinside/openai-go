@@ -14,21 +14,70 @@ const (
 	ChatMessageRoleSystem    ChatMessageRole = "system"
 	ChatMessageRoleUser      ChatMessageRole = "user"
 	ChatMessageRoleAssistant ChatMessageRole = "assistant"
+	ChatMessageRoleFunction  ChatMessageRole = "function"
 )
+
+// ChatCompletionFunctionCall struct
+type ChatCompletionFunctionCall struct {
+	Name      string  `json:"name"`
+	Arguments *string `json:"arguments,omitempty"` // = JSON string
+}
+
+// ArgumentsParsed returns the parsed map from ChatCompletionFunctionCall.
+func (c ChatCompletionFunctionCall) ArgumentsParsed() (result map[string]any, err error) {
+	if c.Arguments != nil {
+		err = json.Unmarshal([]byte(*c.Arguments), &result)
+	}
+
+	return result, err
+}
 
 // ChatMessage struct for chat completion
 //
 // https://platform.openai.com/docs/guides/chat/introduction
 type ChatMessage struct {
 	Role    ChatMessageRole `json:"role"`
-	Content string          `json:"content"`
+	Content *string         `json:"content,omitempty"`
+
+	// for function call
+	Name         *string                     `json:"name,omitempty"`
+	FunctionCall *ChatCompletionFunctionCall `json:"function_call,omitempty"`
 }
+
+// ChatCompletionFunction struct for chat completion function
+//
+// https://platform.openai.com/docs/api-reference/chat/create#chat/create-functions
+type ChatCompletionFunction struct {
+	Name        string         `json:"name"`
+	Description *string        `json:"description,omitempty"`
+	Parameters  map[string]any `json:"parameters,omitempty"`
+}
+
+// NewChatCompletionFunction returns a new chat completion function.
+func NewChatCompletionFunction(name, description string, parameters map[string]any) ChatCompletionFunction {
+	return ChatCompletionFunction{
+		Name:        name,
+		Description: &description,
+		Parameters:  parameters,
+	}
+}
+
+// ChatCompletionFunctionCallMode type
+//
+// https://platform.openai.com/docs/api-reference/chat/create#chat/create-function_call
+type ChatCompletionFunctionCallMode string
+
+// ChatCompletionFunctionCall constants
+const (
+	ChatCompletionFunctionCallNone ChatCompletionFunctionCallMode = "none"
+	ChatCompletionFunctionCallAuto ChatCompletionFunctionCallMode = "auto"
+)
 
 // NewChatSystemMessage returns a new ChatMessage with system role.
 func NewChatSystemMessage(message string) ChatMessage {
 	return ChatMessage{
 		Role:    ChatMessageRoleSystem,
-		Content: message,
+		Content: &message,
 	}
 }
 
@@ -36,7 +85,7 @@ func NewChatSystemMessage(message string) ChatMessage {
 func NewChatUserMessage(message string) ChatMessage {
 	return ChatMessage{
 		Role:    ChatMessageRoleUser,
-		Content: message,
+		Content: &message,
 	}
 }
 
@@ -44,7 +93,16 @@ func NewChatUserMessage(message string) ChatMessage {
 func NewChatAssistantMessage(message string) ChatMessage {
 	return ChatMessage{
 		Role:    ChatMessageRoleAssistant,
-		Content: message,
+		Content: &message,
+	}
+}
+
+// NewChatFunctionMessage returns a new ChatMessage with function role.
+func NewChatFunctionMessage(name, content string) ChatMessage {
+	return ChatMessage{
+		Role:    ChatMessageRoleFunction,
+		Name:    &name,
+		Content: &content,
 	}
 }
 
@@ -68,6 +126,32 @@ type ChatCompletion struct {
 
 // ChatCompletionOptions for creating chat completions
 type ChatCompletionOptions map[string]any
+
+// SetFunctions sets the `functions` parameter of chat completion request.
+//
+// https://platform.openai.com/docs/api-reference/chat/create#chat/create-functions
+func (o ChatCompletionOptions) SetFunctions(functions []ChatCompletionFunction) ChatCompletionOptions {
+	o["functions"] = functions
+	return o
+}
+
+// SetFunctionCall sets the `function_call` parameter of chat completion request.
+//
+// https://platform.openai.com/docs/api-reference/chat/create#chat/create-function_call
+func (o ChatCompletionOptions) SetFunctionCall(functionCall ChatCompletionFunctionCallMode) ChatCompletionOptions {
+	o["function_call"] = functionCall
+	return o
+}
+
+// SetFunctionCallWithName sets the `function_call` parameter of chat completion request.
+//
+// https://platform.openai.com/docs/api-reference/chat/create#chat/create-function_call
+func (o ChatCompletionOptions) SetFunctionCallWithName(name string) ChatCompletionOptions {
+	o["function_call"] = map[string]any{
+		"name": name,
+	}
+	return o
+}
 
 // SetTemperature sets the `temperature` parameter of chat completion request.
 //
