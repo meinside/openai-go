@@ -37,7 +37,7 @@ func (c ChatCompletionFunctionCall) ArgumentsParsed() (result map[string]any, er
 // https://platform.openai.com/docs/guides/chat/introduction
 type ChatMessage struct {
 	Role    ChatMessageRole `json:"role"`
-	Content *string         `json:"content,omitempty"`
+	Content string          `json:"content,omitempty"`
 
 	// for function call
 	Name         *string                     `json:"name,omitempty"`
@@ -77,7 +77,7 @@ const (
 func NewChatSystemMessage(message string) ChatMessage {
 	return ChatMessage{
 		Role:    ChatMessageRoleSystem,
-		Content: &message,
+		Content: message,
 	}
 }
 
@@ -85,7 +85,7 @@ func NewChatSystemMessage(message string) ChatMessage {
 func NewChatUserMessage(message string) ChatMessage {
 	return ChatMessage{
 		Role:    ChatMessageRoleUser,
-		Content: &message,
+		Content: message,
 	}
 }
 
@@ -93,7 +93,7 @@ func NewChatUserMessage(message string) ChatMessage {
 func NewChatAssistantMessage(message string) ChatMessage {
 	return ChatMessage{
 		Role:    ChatMessageRoleAssistant,
-		Content: &message,
+		Content: message,
 	}
 }
 
@@ -102,7 +102,7 @@ func NewChatFunctionMessage(name, content string) ChatMessage {
 	return ChatMessage{
 		Role:    ChatMessageRoleFunction,
 		Name:    &name,
-		Content: &content,
+		Content: content,
 	}
 }
 
