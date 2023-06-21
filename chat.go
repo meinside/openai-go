@@ -53,13 +53,57 @@ type ChatCompletionFunction struct {
 	Parameters  map[string]any `json:"parameters,omitempty"`
 }
 
+// ChatCompletionFunctionParameters type
+type ChatCompletionFunctionParameters map[string]any
+
 // NewChatCompletionFunction returns a new chat completion function.
-func NewChatCompletionFunction(name, description string, parameters map[string]any) ChatCompletionFunction {
+func NewChatCompletionFunction(name, description string, parameters ChatCompletionFunctionParameters) ChatCompletionFunction {
 	return ChatCompletionFunction{
 		Name:        name,
 		Description: &description,
 		Parameters:  parameters,
 	}
+}
+
+// NewChatCompletionFunctionParameters returns an empty ChatCompletionFunctionParameters.
+func NewChatCompletionFunctionParameters() ChatCompletionFunctionParameters {
+	return ChatCompletionFunctionParameters{
+		"type":       "object",
+		"properties": map[string]any{},
+		"required":   []string{},
+	}
+}
+
+// AddPropertyWithDescription adds/overwrites a property in chat completion function parameters with a description.
+func (p ChatCompletionFunctionParameters) AddPropertyWithDescription(name, typ3, description string) ChatCompletionFunctionParameters {
+	if properties, exists := p["properties"]; exists {
+		ps := properties.(map[string]any)
+		ps[name] = map[string]string{
+			"type":        typ3,
+			"description": description,
+		}
+		p["properties"] = ps
+	}
+	return p
+}
+
+// AddPropertyWithEnums adds/overwrites a property in chat completion function parameters with enums.
+func (p ChatCompletionFunctionParameters) AddPropertyWithEnums(name, typ3 string, enums []string) ChatCompletionFunctionParameters {
+	if properties, exists := p["properties"]; exists {
+		ps := properties.(map[string]any)
+		ps[name] = map[string]any{
+			"type": typ3,
+			"enum": enums,
+		}
+		p["properties"] = ps
+	}
+	return p
+}
+
+// SetRequiredParameters sets/overwrites required parameter names for chat completion function parameters.
+func (p ChatCompletionFunctionParameters) SetRequiredParameters(names []string) ChatCompletionFunctionParameters {
+	p["required"] = names
+	return p
 }
 
 // ChatCompletionFunctionCallMode type

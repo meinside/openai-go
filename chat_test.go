@@ -97,26 +97,10 @@ func TestChatCompletionsFunction(t *testing.T) {
 				NewChatCompletionFunction(
 					"get_current_weather",
 					"Get the current weather in a given location",
-					map[string]any{
-						"type": "object",
-						"properties": map[string]any{
-							"location": map[string]any{
-								"type":        "string",
-								"description": "The city and state, e.g. San Francisco, CA",
-							},
-							"unit": map[string]any{
-								"type": "string",
-								"enum": []string{
-									"celsius",
-									"fahrenheit",
-								},
-							},
-						},
-						"required": []string{
-							"location",
-							"unit",
-						},
-					},
+					NewChatCompletionFunctionParameters().
+						AddPropertyWithDescription("location", "string", "The city and state, e.g. San Francisco, CA").
+						AddPropertyWithEnums("unit", "string", []string{"celsius", "fahrenheit"}).
+						SetRequiredParameters([]string{"location", "unit"}),
 				),
 			}).
 			SetFunctionCall(ChatCompletionFunctionCallAuto)); err != nil {
