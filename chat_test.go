@@ -7,7 +7,7 @@ import (
 )
 
 // const chatCompletionModel = "gpt-3.5-turbo"
-const chatCompletionModel = "gpt-3.5-turbo-0613" // for testing `function`
+const chatCompletionModel = "gpt-3.5-turbo-0613" // NOTE: for testing `function call` (remove it when it becomes default)
 
 // === CreateChatCompletion ===
 func TestChatCompletions(t *testing.T) {
@@ -90,6 +90,7 @@ func TestChatCompletionsFunction(t *testing.T) {
 		t.Errorf("environment variables `OPENAI_API_KEY` and `OPENAI_ORGANIZATION` are needed")
 	}
 
+	// generate a chat completion with function calls
 	if created, err := client.CreateChatCompletion(chatCompletionModel,
 		[]ChatMessage{NewChatUserMessage("What's the weather like in Seoul?")},
 		ChatCompletionOptions{}.
@@ -122,21 +123,17 @@ func TestChatCompletionsFunction(t *testing.T) {
 				if message.FunctionCall.Arguments == nil {
 					t.Errorf("there were no returned function call arguments")
 				} else {
-					arguments, _ := message.FunctionCall.ArgumentsParsed()
-
-					var location, unit string
-					if l, exists := arguments["location"]; exists {
-						location = l.(string)
-					} else {
-						t.Errorf("there was no returned parameter 'location' from function call")
+					// parse returned arguments into a struct
+					type parsed struct {
+						Location string `json:"location"`
+						Unit     string `json:"unit"`
 					}
-					if u, exists := arguments["unit"]; exists {
-						unit = u.(string)
-					} else {
-						t.Errorf("there was no returned parameter 'unit' from function call")
+					var arguments parsed
+					if err := message.FunctionCall.ArgumentsInto(&arguments); err != nil {
+						t.Errorf("failed to parse arguments into struct: %s", err)
 					}
 
-					t.Logf("will call %s(\"%s\", \"%s\")", functionName, location, unit)
+					t.Logf("will call %s(\"%s\", \"%s\")", functionName, arguments.Location, arguments.Unit)
 					//functionResponse := `functionName`(location, unit) // -> get_current_weather('Seoul', 'celsius')
 					functionResponse := "36.5"
 
@@ -144,9 +141,10 @@ func TestChatCompletionsFunction(t *testing.T) {
 					content := "test"
 					message.Content = &content
 
+					// generate a chat completion again with a local function result from the generated arguments
 					if created, err := client.CreateChatCompletion(chatCompletionModel, []ChatMessage{
 						NewChatUserMessage("What's the weather like in Seoul?"),
-						message,
+						message, // = generated function call from the previous generation
 						NewChatFunctionMessage(functionName, functionResponse),
 					}, nil); err != nil {
 						t.Errorf("failed to create chat completion with local function response: %s", err)
