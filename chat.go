@@ -32,6 +32,17 @@ func (c ChatCompletionFunctionCall) ArgumentsParsed() (result map[string]any, er
 	return result, err
 }
 
+// ArgumentsInto parses the generated arguments into a given interface
+func (c ChatCompletionFunctionCall) ArgumentsInto(out any) (err error) {
+	if c.Arguments == nil {
+		err = fmt.Errorf("parse failed: `arguments` is nil")
+	} else {
+		err = json.Unmarshal([]byte(*c.Arguments), &out)
+	}
+
+	return err
+}
+
 // ChatMessage struct for chat completion
 //
 // https://platform.openai.com/docs/guides/chat/introduction
