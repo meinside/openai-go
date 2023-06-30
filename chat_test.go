@@ -6,8 +6,7 @@ import (
 	"testing"
 )
 
-// const chatCompletionModel = "gpt-3.5-turbo"
-const chatCompletionModel = "gpt-3.5-turbo-0613" // NOTE: for testing `function call` (remove it when it becomes default)
+const chatCompletionModel = "gpt-3.5-turbo"
 
 // === CreateChatCompletion ===
 func TestChatCompletions(t *testing.T) {
