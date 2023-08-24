@@ -61,6 +61,8 @@ func (o EditOptions) SetTopP(topP float64) EditOptions {
 
 // CreateEdit creates an edit for given things.
 //
+// (DEPRECATED)
+//
 // https://platform.openai.com/docs/api-reference/edits/create
 func (c *Client) CreateEdit(model, instruction string, options EditOptions) (response Edit, err error) {
 	if options == nil {

@@ -44,7 +44,7 @@ $ go test
 
 ### Implemented
 
-All API functions so far (2023.03.06.) are implemented, but not all of them were tested on a paid account.
+All API functions so far (2023.08.24.) are implemented, but not all of them were tested on a paid account.
 
 - [X] [Models](https://platform.openai.com/docs/api-reference/models): works on a non-paid account
 - [X] [Completions](https://platform.openai.com/docs/api-reference/completions)
@@ -54,7 +54,8 @@ All API functions so far (2023.03.06.) are implemented, but not all of them were
 - [X] [Embeddings](https://platform.openai.com/docs/api-reference/embeddings)
 - [X] [Audio](https://platform.openai.com/docs/api-reference/audio)
 - [X] [Files](https://platform.openai.com/docs/api-reference/files)
-- [X] [Fine-tunes](https://platform.openai.com/docs/api-reference/fine-tunes)
+- [X] (DEPRECATED) ~~[Fine-tunes](https://platform.openai.com/docs/api-reference/fine-tunes)~~
+- [X] [Fine-tuning](https://platform.openai.com/docs/api-reference/fine-tuning)
 - [X] [Moderations](https://platform.openai.com/docs/api-reference/moderations): works on a non-paid account
 
 - [X] ~~Stream([server-sent events](https://developer.mozilla.org/en-US/docs/Web/API/Server-sent_events/Using_server-sent_events#event_stream_format)) options are not implemented yet.~~ thanks to @tectiv3 :-)

@@ -1,3 +1,5 @@
+// (DEPRECATED) https://openai.com/blog/gpt-3-5-turbo-fine-tuning-and-api-updates
+
 package openai
 
 import (
@@ -8,6 +10,8 @@ import (
 // https://platform.openai.com/docs/api-reference/fine-tunes
 
 // FineTune struct for response
+//
+// (DEPRECATED)
 type FineTune struct {
 	CommonResponse
 
@@ -132,6 +136,8 @@ func (o FineTuneOptions) SetSuffix(suffix string) FineTuneOptions {
 
 // CreateFineTune creates a job that fine-tunes a specified model from a given dataset.
 //
+// (DEPRECATED)
+//
 // https://platform.openai.com/docs/api-reference/fine-tunes/create
 func (c *Client) CreateFineTune(trainingFileID string, options FineTuneOptions) (response FineTune, err error) {
 	if options == nil {
@@ -167,6 +173,8 @@ type FineTunes struct {
 
 // ListFineTunes lists the organization's fine-tuning jobs.
 //
+// (DEPRECATED)
+//
 // https://platform.openai.com/docs/api-reference/fine-tunes/list
 func (c *Client) ListFineTunes() (response FineTunes, err error) {
 	var bytes []byte
@@ -190,6 +198,8 @@ func (c *Client) ListFineTunes() (response FineTunes, err error) {
 
 // RetrieveFineTune gets info about specified fine-tune job.
 //
+// (DEPRECATED)
+//
 // https://platform.openai.com/docs/api-reference/fine-tunes/retrieve
 func (c *Client) RetrieveFineTune(fineTuneID string) (response FineTune, err error) {
 	var bytes []byte
@@ -212,6 +222,8 @@ func (c *Client) RetrieveFineTune(fineTuneID string) (response FineTune, err err
 }
 
 // CancelFineTune immediately cancels a fine-tune job.
+//
+// (DEPRECATED)
 //
 // https://platform.openai.com/docs/api-reference/fine-tunes/cancel
 func (c *Client) CancelFineTune(fineTuneID string) (response FineTune, err error) {
@@ -255,6 +267,8 @@ func (o FineTuneEventsOptions) SetStream(stream bool) FineTuneEventsOptions {
 }
 
 // ListFineTuneEvents gets fine-grained status updates for a fine-tune job.
+//
+// (DEPRECATED)
 //
 // https://platform.openai.com/docs/api-reference/fine-tunes/events
 func (c *Client) ListFineTuneEvents(fineTuneID string, options FineTuneEventsOptions) (response FineTuneEvents, err error) {
