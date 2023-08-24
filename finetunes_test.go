@@ -1,3 +1,5 @@
+// (DEPRECATED) https://openai.com/blog/gpt-3-5-turbo-fine-tuning-and-api-updates
+
 package openai
 
 import (
