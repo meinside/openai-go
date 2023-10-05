@@ -78,6 +78,11 @@ func (e *Error) err() error {
 func stream(res *http.Response, cb callback) {
 	defer res.Body.Close()
 	scanner := bufio.NewScanner(res.Body)
+	fun := ChatCompletionFunctionCall{
+		Arguments: new(string),
+		Name: "",
+	}
+
 	for scanner.Scan() {
 		var entry ChatCompletion
 		b := scanner.Bytes()
@@ -91,6 +96,21 @@ func stream(res *http.Response, cb callback) {
 			}
 			if err := json.Unmarshal(b[len(StreamData):], &entry); err != nil {
 				cb(entry, true, err)
+				return
+			}
+
+			if entry.Choices[0].Delta.FunctionCall != nil {
+				if entry.Choices[0].Delta.FunctionCall.Name != "" {
+					fun.Name = entry.Choices[0].Delta.FunctionCall.Name
+				} else if entry.Choices[0].Delta.FunctionCall.Arguments != nil {
+					*fun.Arguments = *fun.Arguments + *entry.Choices[0].Delta.FunctionCall.Arguments
+				}
+			}
+
+			if entry.Choices[0].FinishReason == "function_call" {
+				entry.Choices[0].Message.FunctionCall = &fun
+				cb(entry, false, nil)
+				cb(entry, true, nil)
 				return
 			}
 			cb(entry, false, nil)
