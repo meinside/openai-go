@@ -199,8 +199,112 @@ type ChatCompletion struct {
 	Usage   Usage                  `json:"usage"`
 }
 
+// ChatCompletionResponseFormat struct for chat completion request
+type ChatCompletionResponseFormat struct {
+	Type ChatCompletionResponseFormatType `json:"type,omitempty"`
+}
+
+// ChatCompletionResponseFormatType type for constants
+type ChatCompletionResponseFormatType string
+
+// ChatCompletionResponseFormatType constants
+const (
+	ChatCompletionResponseFormatTypeText       ChatCompletionResponseFormatType = "text"
+	ChatCompletionResponseFormatTypeJSONObject ChatCompletionResponseFormatType = "json_object"
+)
+
 // ChatCompletionOptions for creating chat completions
 type ChatCompletionOptions map[string]any
+
+// SetFrequencyPenalty sets the `frequency_penalty` parameter of chat completions.
+//
+// https://platform.openai.com/docs/api-reference/chat/create#chat/create-frequency_penalty
+func (o ChatCompletionOptions) SetFrequencyPenalty(frequencyPenalty float64) ChatCompletionOptions {
+	o["frequency_penalty"] = frequencyPenalty
+	return o
+}
+
+// SetLogitBias sets the `logit_bias` parameter of chat completions.
+//
+// https://platform.openai.com/docs/api-reference/chat/create#chat/create-logit_bias
+func (o ChatCompletionOptions) SetLogitBias(logitBias map[string]any) ChatCompletionOptions {
+	o["logit_bias"] = logitBias
+	return o
+}
+
+// SetMaxTokens sets the `max_tokens` parameter of chat completions.
+//
+// https://platform.openai.com/docs/api-reference/chat/create#chat/create-max_tokens
+func (o ChatCompletionOptions) SetMaxTokens(maxTokens int) ChatCompletionOptions {
+	o["max_tokens"] = maxTokens
+	return o
+}
+
+// SetN sets the `n` parameter of chat completions.
+//
+// https://platform.openai.com/docs/api-reference/chat/create#chat/create-n
+func (o ChatCompletionOptions) SetN(n int) ChatCompletionOptions {
+	o["n"] = n
+	return o
+}
+
+// SetPresencePenalty sets the `presence_penalty` parameter of chat completions.
+//
+// https://platform.openai.com/docs/api-reference/chat/create#chat/create-presence_penalty
+func (o ChatCompletionOptions) SetPresencePenalty(presencePenalty float64) ChatCompletionOptions {
+	o["presence_penalty"] = presencePenalty
+	return o
+}
+
+// SetResponseFormat sets the `response_format` parameter of chat completions.
+//
+// https://platform.openai.com/docs/api-reference/chat/create#chat-create-response_format
+func (o ChatCompletionOptions) SetResponseFormat(format ChatCompletionResponseFormat) ChatCompletionOptions {
+	o["response_format"] = format
+	return o
+}
+
+// SetSeed sets the `seed` parameter of chat completions.
+//
+// https://platform.openai.com/docs/api-reference/chat/create#chat-create-seed
+func (o ChatCompletionOptions) SetSeed(seed int64) ChatCompletionOptions {
+	o["seed"] = seed
+	return o
+}
+
+// SetStop sets the `stop` parameter of chat completions.
+//
+// https://platform.openai.com/docs/api-reference/chat/create#chat/create-stop
+func (o ChatCompletionOptions) SetStop(stop any) ChatCompletionOptions {
+	o["stop"] = stop
+	return o
+}
+
+// SetStream sets the `stream` parameter of chat completions.
+//
+// https://developer.mozilla.org/en-US/docs/Web/API/Server-sent_events/Using_server-sent_events#event_stream_format
+//
+// https://platform.openai.com/docs/api-reference/chat/create#chat/create-stream
+func (o ChatCompletionOptions) SetStream(cb callback) ChatCompletionOptions {
+	o["stream"] = cb
+	return o
+}
+
+// SetTemperature sets the `temperature` parameter of chat completion request.
+//
+// https://platform.openai.com/docs/api-reference/chat/create#chat/create-temperature
+func (o ChatCompletionOptions) SetTemperature(temperature float64) ChatCompletionOptions {
+	o["temperature"] = temperature
+	return o
+}
+
+// SetTopP sets the `top_p` parameter of chat completions.
+//
+// https://platform.openai.com/docs/api-reference/chat/create#chat/create-top_p
+func (o ChatCompletionOptions) SetTopP(topP float64) ChatCompletionOptions {
+	o["top_p"] = topP
+	return o
+}
 
 // SetTools sets the `tools` parameter of chat completion request.
 //
@@ -228,80 +332,6 @@ func (o ChatCompletionOptions) SetToolChoiceWithName(name string) ChatCompletion
 			"name": name,
 		},
 	}
-	return o
-}
-
-// SetTemperature sets the `temperature` parameter of chat completion request.
-//
-// https://platform.openai.com/docs/api-reference/chat/create#chat/create-temperature
-func (o ChatCompletionOptions) SetTemperature(temperature float64) ChatCompletionOptions {
-	o["temperature"] = temperature
-	return o
-}
-
-// SetTopP sets the `top_p` parameter of chat completions.
-//
-// https://platform.openai.com/docs/api-reference/chat/create#chat/create-top_p
-func (o ChatCompletionOptions) SetTopP(topP float64) ChatCompletionOptions {
-	o["top_p"] = topP
-	return o
-}
-
-// SetN sets the `n` parameter of chat completions.
-//
-// https://platform.openai.com/docs/api-reference/chat/create#chat/create-n
-func (o ChatCompletionOptions) SetN(n int) ChatCompletionOptions {
-	o["n"] = n
-	return o
-}
-
-// SetStream sets the `stream` parameter of chat completions.
-//
-// https://developer.mozilla.org/en-US/docs/Web/API/Server-sent_events/Using_server-sent_events#event_stream_format
-//
-// https://platform.openai.com/docs/api-reference/chat/create#chat/create-stream
-func (o ChatCompletionOptions) SetStream(cb callback) ChatCompletionOptions {
-	o["stream"] = cb
-	return o
-}
-
-// SetStop sets the `stop` parameter of chat completions.
-//
-// https://platform.openai.com/docs/api-reference/chat/create#chat/create-stop
-func (o ChatCompletionOptions) SetStop(stop any) ChatCompletionOptions {
-	o["stop"] = stop
-	return o
-}
-
-// SetMaxTokens sets the `max_tokens` parameter of chat completions.
-//
-// https://platform.openai.com/docs/api-reference/chat/create#chat/create-max_tokens
-func (o ChatCompletionOptions) SetMaxTokens(maxTokens int) ChatCompletionOptions {
-	o["max_tokens"] = maxTokens
-	return o
-}
-
-// SetPresencePenalty sets the `presence_penalty` parameter of chat completions.
-//
-// https://platform.openai.com/docs/api-reference/chat/create#chat/create-presence_penalty
-func (o ChatCompletionOptions) SetPresencePenalty(presencePenalty float64) ChatCompletionOptions {
-	o["presence_penalty"] = presencePenalty
-	return o
-}
-
-// SetFrequencyPenalty sets the `frequency_penalty` parameter of chat completions.
-//
-// https://platform.openai.com/docs/api-reference/chat/create#chat/create-frequency_penalty
-func (o ChatCompletionOptions) SetFrequencyPenalty(frequencyPenalty float64) ChatCompletionOptions {
-	o["frequency_penalty"] = frequencyPenalty
-	return o
-}
-
-// SetLogitBias sets the `logit_bias` parameter of chat completions.
-//
-// https://platform.openai.com/docs/api-reference/chat/create#chat/create-logit_bias
-func (o ChatCompletionOptions) SetLogitBias(logitBias map[string]any) ChatCompletionOptions {
-	o["logit_bias"] = logitBias
 	return o
 }
 
