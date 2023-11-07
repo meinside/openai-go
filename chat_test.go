@@ -63,8 +63,16 @@ func TestChatCompletionsStream(t *testing.T) {
 		for comp := range ch {
 			if comp.err == nil {
 				if client.Verbose {
-					if !comp.done && comp.response.Choices[0].Delta.Content != nil {
-						log.Printf("stream response = %s", *comp.response.Choices[0].Delta.Content)
+					if !comp.done {
+						if content, err := comp.response.Choices[0].Delta.ContentString(); err == nil {
+							log.Printf("stream response string: %s", content)
+							continue
+						}
+
+						if content, err := comp.response.Choices[0].Delta.ContentArray(); err == nil {
+							log.Printf("stream response messages: %+v", content)
+							continue
+						}
 					}
 				}
 			} else {

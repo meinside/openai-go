@@ -55,18 +55,54 @@ func (c ToolCall) ArgumentsInto(out any) (err error) {
 	return err
 }
 
+// ChatMessageContent struct
+type ChatMessageContent struct {
+	Type string `json:"type"`
+
+	Text     *string `json:"text,omitempty"`
+	ImageURL *string `json:"image_url,omitempty"`
+}
+
 // ChatMessage struct for chat completion
 //
 // https://platform.openai.com/docs/guides/chat/introduction
 type ChatMessage struct {
 	Role    ChatMessageRole `json:"role"`
-	Content *string         `json:"content,omitempty"`
+	Content any             `json:"content,omitempty"` // NOTE: string | []ChatMessageContent
 
 	// for function call
 	Name         *string                     `json:"name,omitempty"`          // XXX: DEPRECATED
 	FunctionCall *ChatCompletionFunctionCall `json:"function_call,omitempty"` // XXX: DEPRECATED
 	ToolCalls    []ToolCall                  `json:"tool_calls,omitempty"`    // when role == 'assistant'
 	ToolCallID   *string                     `json:"tool_call_id,omitempty"`  // when role == 'tool'
+}
+
+// ContentString tries to return the `content` value as a string.
+func (m ChatMessage) ContentString() (string, error) {
+	if m.Content != nil {
+		if str, ok := m.Content.(string); ok {
+			return str, nil
+		} else if str, ok := m.Content.(*string); ok { // FIXME: really needed?
+			return *str, nil
+		}
+
+		return "", fmt.Errorf("returned `content` is not a string")
+	}
+
+	return "", fmt.Errorf("returned `content` is nil, cannot return as a string")
+}
+
+// ContentArray tries to return the `content` value as a content array.
+func (m ChatMessage) ContentArray() ([]ChatMessageContent, error) {
+	if m.Content != nil {
+		if arr, ok := m.Content.([]ChatMessageContent); ok {
+			return arr, nil
+		}
+
+		return nil, fmt.Errorf("returned `content` is not a content array")
+	}
+
+	return nil, fmt.Errorf("returned `content` is nil, cannot return as a content array")
 }
 
 // ChatCompletionFunctionParameters type
@@ -156,11 +192,16 @@ func NewChatSystemMessage(message string) ChatMessage {
 	}
 }
 
+// ChatUserMessageContentTypes interface for type constraints in `NewChatUserMessage`
+type ChatUserMessageContentTypes interface {
+	string | []ChatMessageContent
+}
+
 // NewChatUserMessage returns a new ChatMessage with user role.
-func NewChatUserMessage(message string) ChatMessage {
+func NewChatUserMessage[T ChatUserMessageContentTypes](contents T) ChatMessage {
 	return ChatMessage{
 		Role:    ChatMessageRoleUser,
-		Content: &message,
+		Content: contents,
 	}
 }
 
