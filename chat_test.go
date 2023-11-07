@@ -7,6 +7,7 @@ import (
 )
 
 const chatCompletionModel = "gpt-3.5-turbo"
+const chatCompletionVisionModel = "gpt-4-vision-preview"
 
 // === CreateChatCompletion ===
 func TestChatCompletions(t *testing.T) {
@@ -163,5 +164,44 @@ func TestChatCompletionsFunction(t *testing.T) {
 				}
 			}
 		}
+	}
+}
+
+// === CreateChatCompletion (vision) ===
+//
+// https://platform.openai.com/docs/guides/vision/vision
+func TestChatCompletionsVision(t *testing.T) {
+	_apiKey := os.Getenv("OPENAI_API_KEY")
+	_org := os.Getenv("OPENAI_ORGANIZATION")
+	_verbose := os.Getenv("VERBOSE")
+
+	client := NewClient(_apiKey, _org)
+	client.Verbose = _verbose == "true"
+
+	if len(_apiKey) <= 0 || len(_org) <= 0 {
+		t.Errorf("environment variables `OPENAI_API_KEY` and `OPENAI_ORGANIZATION` are needed")
+	}
+
+	if image, err := NewFileParamFromFilepath("./sample/pepe.png"); err == nil {
+		if created, err := client.CreateChatCompletion(chatCompletionVisionModel,
+			[]ChatMessage{
+				NewChatUserMessage[[]ChatMessageContent]([]ChatMessageContent{
+					NewChatMessageContentWithText("What’s in this image?"),
+					//NewChatMessageContentWithImageURL("https://user-images.githubusercontent.com/185988/60949207-a9daf400-a32f-11e9-8f11-d68d31cb0c31.png"),
+					NewChatMessageContentWithFileParam(image),
+				}),
+			},
+			nil); err != nil {
+			t.Errorf("failed to create chat completion for vision: %s", err)
+		} else {
+			if len(created.Choices) <= 0 {
+				t.Errorf("there was no returned choice")
+			}
+
+			// test
+			log.Printf("result = %+v", created)
+		}
+	} else {
+		t.Errorf("failed to open sample image: %s", err)
 	}
 }

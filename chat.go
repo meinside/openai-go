@@ -3,8 +3,10 @@ package openai
 // https://platform.openai.com/docs/api-reference/chat
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"net/http"
 )
 
 // ChatMessageRole type for constants
@@ -60,7 +62,43 @@ type ChatMessageContent struct {
 	Type string `json:"type"`
 
 	Text     *string `json:"text,omitempty"`
-	ImageURL *string `json:"image_url,omitempty"`
+	ImageURL any     `json:"image_url,omitempty"`
+}
+
+// NewChatMessageContentWithText returns a ChatMessageContent struct with given `text`.
+func NewChatMessageContentWithText(text string) ChatMessageContent {
+	return ChatMessageContent{
+		Type: "text",
+		Text: &text,
+	}
+}
+
+// NewChatMessageContentWithImageURL returns a ChatMessageContent struct with given `url`.
+func NewChatMessageContentWithImageURL(url string) ChatMessageContent {
+	return ChatMessageContent{
+		Type:     "image_url",
+		ImageURL: &url,
+	}
+}
+
+// converts given bytes array to base64-encoded data URL
+func bytesToDataURL(bytes []byte) string {
+	return fmt.Sprintf("data:%s;base64,%s", http.DetectContentType(bytes), base64.StdEncoding.EncodeToString(bytes))
+}
+
+// NewChatMessageContentWithBytes returns a ChatMessageContent struct with given `bytes`.
+func NewChatMessageContentWithBytes(bytes []byte) ChatMessageContent {
+	return ChatMessageContent{
+		Type: "image_url",
+		ImageURL: map[string]string{
+			"url": bytesToDataURL(bytes),
+		},
+	}
+}
+
+// NewChatMessageContentWithFileParam returns a ChatMessageContent struct with given `file`.
+func NewChatMessageContentWithFileParam(file FileParam) ChatMessageContent {
+	return NewChatMessageContentWithBytes(file.bs)
 }
 
 // ChatMessage struct for chat completion
