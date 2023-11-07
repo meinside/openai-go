@@ -14,30 +14,42 @@ const (
 	ChatMessageRoleSystem    ChatMessageRole = "system"
 	ChatMessageRoleUser      ChatMessageRole = "user"
 	ChatMessageRoleAssistant ChatMessageRole = "assistant"
-	ChatMessageRoleFunction  ChatMessageRole = "function"
+	ChatMessageRoleTool      ChatMessageRole = "tool"
 )
 
 // ChatCompletionFunctionCall struct
+//
+// XXX: DEPRECATED
 type ChatCompletionFunctionCall struct {
 	Name      string  `json:"name"`
 	Arguments *string `json:"arguments,omitempty"` // = JSON string
 }
 
-// ArgumentsParsed returns the parsed map from ChatCompletionFunctionCall.
-func (c ChatCompletionFunctionCall) ArgumentsParsed() (result map[string]any, err error) {
-	if c.Arguments != nil {
-		err = json.Unmarshal([]byte(*c.Arguments), &result)
+// ToolCall struct
+type ToolCall struct {
+	ID       string `json:"id"`
+	Type     string `json:"type"` // == 'function'
+	Function struct {
+		Name      string `json:"name"`
+		Arguments string `json:"arguments"`
+	} `json:"function"`
+}
+
+// ArgumentsParsed returns the parsed map from ToolCall.
+func (c ToolCall) ArgumentsParsed() (result map[string]any, err error) {
+	if c.Function.Arguments != "" {
+		err = json.Unmarshal([]byte(c.Function.Arguments), &result)
 	}
 
 	return result, err
 }
 
 // ArgumentsInto parses the generated arguments into a given interface
-func (c ChatCompletionFunctionCall) ArgumentsInto(out any) (err error) {
-	if c.Arguments == nil {
-		err = fmt.Errorf("parse failed: `arguments` is nil")
+func (c ToolCall) ArgumentsInto(out any) (err error) {
+	if c.Function.Arguments == "" {
+		err = fmt.Errorf("parse failed: `arguments` is empty")
 	} else {
-		err = json.Unmarshal([]byte(*c.Arguments), &out)
+		err = json.Unmarshal([]byte(c.Function.Arguments), &out)
 	}
 
 	return err
@@ -51,29 +63,37 @@ type ChatMessage struct {
 	Content *string         `json:"content,omitempty"`
 
 	// for function call
-	Name         *string                     `json:"name,omitempty"`
-	FunctionCall *ChatCompletionFunctionCall `json:"function_call,omitempty"`
-}
-
-// ChatCompletionFunction struct for chat completion function
-//
-// https://platform.openai.com/docs/api-reference/chat/create#chat/create-functions
-type ChatCompletionFunction struct {
-	Name        string         `json:"name"`
-	Description *string        `json:"description,omitempty"`
-	Parameters  map[string]any `json:"parameters,omitempty"`
+	Name         *string                     `json:"name,omitempty"`          // XXX: DEPRECATED
+	FunctionCall *ChatCompletionFunctionCall `json:"function_call,omitempty"` // XXX: DEPRECATED
+	ToolCalls    []ToolCall                  `json:"tool_calls,omitempty"`    // when role == 'assistant'
+	ToolCallID   *string                     `json:"tool_call_id,omitempty"`  // when role == 'tool'
 }
 
 // ChatCompletionFunctionParameters type
 type ChatCompletionFunctionParameters map[string]any
 
-// NewChatCompletionFunction returns a new chat completion function.
-func NewChatCompletionFunction(name, description string, parameters ChatCompletionFunctionParameters) ChatCompletionFunction {
-	return ChatCompletionFunction{
-		Name:        name,
-		Description: &description,
-		Parameters:  parameters,
+// ChatCompletionTool struct for chat completion function
+//
+// https://platform.openai.com/docs/api-reference/chat/create#chat-create-tools
+type ChatCompletionTool struct {
+	Type     string `json:"type"` // == 'function'
+	Function struct {
+		Name        string                           `json:"name"`
+		Description *string                          `json:"description,omitempty"`
+		Parameters  ChatCompletionFunctionParameters `json:"parameters"`
+	} `json:"function"`
+}
+
+// NewChatCompletionTool returns a ChatCompletionTool.
+func NewChatCompletionTool(name, description string, parameters ChatCompletionFunctionParameters) ChatCompletionTool {
+	tool := ChatCompletionTool{
+		Type: "function",
 	}
+	tool.Function.Name = name
+	tool.Function.Description = &description
+	tool.Function.Parameters = parameters
+
+	return tool
 }
 
 // NewChatCompletionFunctionParameters returns an empty ChatCompletionFunctionParameters.
@@ -117,15 +137,15 @@ func (p ChatCompletionFunctionParameters) SetRequiredParameters(names []string) 
 	return p
 }
 
-// ChatCompletionFunctionCallMode type
+// ChatCompletionToolChoiceMode type
 //
-// https://platform.openai.com/docs/api-reference/chat/create#chat/create-function_call
-type ChatCompletionFunctionCallMode string
+// https://platform.openai.com/docs/api-reference/chat/create#chat-create-tool_choice
+type ChatCompletionToolChoiceMode string
 
-// ChatCompletionFunctionCall constants
+// ChatCompletionToolChoiceMode constants
 const (
-	ChatCompletionFunctionCallNone ChatCompletionFunctionCallMode = "none"
-	ChatCompletionFunctionCallAuto ChatCompletionFunctionCallMode = "auto"
+	ChatCompletionToolChoiceNone ChatCompletionToolChoiceMode = "none"
+	ChatCompletionToolChoiceAuto ChatCompletionToolChoiceMode = "auto"
 )
 
 // NewChatSystemMessage returns a new ChatMessage with system role.
@@ -152,12 +172,12 @@ func NewChatAssistantMessage(message string) ChatMessage {
 	}
 }
 
-// NewChatFunctionMessage returns a new ChatMessage with function role.
-func NewChatFunctionMessage(name, content string) ChatMessage {
+// NewChatToolMessage returns a new ChatMesssage with tool role.
+func NewChatToolMessage(toolCallID, content string) ChatMessage {
 	return ChatMessage{
-		Role:    ChatMessageRoleFunction,
-		Name:    &name,
-		Content: &content,
+		Role:       ChatMessageRoleTool,
+		Content:    &content,
+		ToolCallID: &toolCallID,
 	}
 }
 
@@ -182,28 +202,31 @@ type ChatCompletion struct {
 // ChatCompletionOptions for creating chat completions
 type ChatCompletionOptions map[string]any
 
-// SetFunctions sets the `functions` parameter of chat completion request.
+// SetTools sets the `tools` parameter of chat completion request.
 //
-// https://platform.openai.com/docs/api-reference/chat/create#chat/create-functions
-func (o ChatCompletionOptions) SetFunctions(functions []ChatCompletionFunction) ChatCompletionOptions {
-	o["functions"] = functions
+// https://platform.openai.com/docs/api-reference/chat/create#chat-create-tools
+func (o ChatCompletionOptions) SetTools(tools []ChatCompletionTool) ChatCompletionOptions {
+	o["tools"] = tools
 	return o
 }
 
-// SetFunctionCall sets the `function_call` parameter of chat completion request.
+// SetToolChoice sets the `tool_choice` parameter of chat completion request.
 //
-// https://platform.openai.com/docs/api-reference/chat/create#chat/create-function_call
-func (o ChatCompletionOptions) SetFunctionCall(functionCall ChatCompletionFunctionCallMode) ChatCompletionOptions {
-	o["function_call"] = functionCall
+// https://platform.openai.com/docs/api-reference/chat/create#chat-create-tool_choice
+func (o ChatCompletionOptions) SetToolChoice(choice ChatCompletionToolChoiceMode) ChatCompletionOptions {
+	o["tool_choice"] = choice
 	return o
 }
 
-// SetFunctionCallWithName sets the `function_call` parameter of chat completion request.
+// SetToolChoiceWithName sets the `tool_choice` parameter of chat completion request with given function name.
 //
-// https://platform.openai.com/docs/api-reference/chat/create#chat/create-function_call
-func (o ChatCompletionOptions) SetFunctionCallWithName(name string) ChatCompletionOptions {
-	o["function_call"] = map[string]any{
-		"name": name,
+// https://platform.openai.com/docs/api-reference/chat/create#chat-create-tool_choice
+func (o ChatCompletionOptions) SetToolChoiceWithName(name string) ChatCompletionOptions {
+	o["tool_choice"] = map[string]any{
+		"type": "function",
+		"function": map[string]any{
+			"name": name,
+		},
 	}
 	return o
 }

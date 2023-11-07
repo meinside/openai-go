@@ -63,7 +63,7 @@ func TestChatCompletionsStream(t *testing.T) {
 		for comp := range ch {
 			if comp.err == nil {
 				if client.Verbose {
-					if !comp.done {
+					if !comp.done && comp.response.Choices[0].Delta.Content != nil {
 						log.Printf("stream response = %s", *comp.response.Choices[0].Delta.Content)
 					}
 				}
@@ -77,6 +77,8 @@ func TestChatCompletionsStream(t *testing.T) {
 }
 
 // === CreateChatCompletion (function) ===
+//
+// example from: https://platform.openai.com/docs/guides/function-calling/parallel-function-calling
 func TestChatCompletionsFunction(t *testing.T) {
 	_apiKey := os.Getenv("OPENAI_API_KEY")
 	_org := os.Getenv("OPENAI_ORGANIZATION")
@@ -89,12 +91,16 @@ func TestChatCompletionsFunction(t *testing.T) {
 		t.Errorf("environment variables `OPENAI_API_KEY` and `OPENAI_ORGANIZATION` are needed")
 	}
 
+	messages := []ChatMessage{
+		NewChatUserMessage("What's the weather like in Seoul?"),
+	}
+
 	// generate a chat completion with function calls
 	if created, err := client.CreateChatCompletion(chatCompletionModel,
-		[]ChatMessage{NewChatUserMessage("What's the weather like in Seoul?")},
+		messages,
 		ChatCompletionOptions{}.
-			SetFunctions([]ChatCompletionFunction{
-				NewChatCompletionFunction(
+			SetTools([]ChatCompletionTool{
+				NewChatCompletionTool(
 					"get_current_weather",
 					"Get the current weather in a given location",
 					NewChatCompletionFunctionParameters().
@@ -103,55 +109,49 @@ func TestChatCompletionsFunction(t *testing.T) {
 						SetRequiredParameters([]string{"location", "unit"}),
 				),
 			}).
-			SetFunctionCall(ChatCompletionFunctionCallAuto)); err != nil {
+			SetToolChoice(ChatCompletionToolChoiceAuto)); err != nil {
 		t.Errorf("failed to create chat completion: %s", err)
 	} else {
 		if len(created.Choices) <= 0 {
 			t.Errorf("there was no returned choice")
 		} else {
-			message := created.Choices[0].Message
+			responseMessage := created.Choices[0].Message
 
-			if message.FunctionCall == nil {
-				t.Errorf("there was no returned function call")
-			} else {
-				functionName := message.FunctionCall.Name
-				if functionName == "" {
-					t.Errorf("there was no returned function call name")
+			// FIXME: workaround for error: `'content' is a required property - 'messages.1'` <= assistant message's content should not be nil?
+			content := "test"
+			responseMessage.Content = &content
+
+			// append the first response to the `messages`
+			messages = append(messages, responseMessage)
+
+			for _, toolCall := range responseMessage.ToolCalls {
+				function := toolCall.Function
+
+				// parse returned arguments into a struct
+				type parsed struct {
+					Location string `json:"location"`
+					Unit     string `json:"unit"`
 				}
-
-				if message.FunctionCall.Arguments == nil {
-					t.Errorf("there were no returned function call arguments")
+				var arguments parsed
+				if err := toolCall.ArgumentsInto(&arguments); err != nil {
+					t.Errorf("failed to parse arguments into struct: %s", err)
 				} else {
-					// parse returned arguments into a struct
-					type parsed struct {
-						Location string `json:"location"`
-						Unit     string `json:"unit"`
-					}
-					var arguments parsed
-					if err := message.FunctionCall.ArgumentsInto(&arguments); err != nil {
-						t.Errorf("failed to parse arguments into struct: %s", err)
-					}
+					t.Logf("will call %s(\"%s\", \"%s\")", function.Name, arguments.Location, arguments.Unit)
 
-					t.Logf("will call %s(\"%s\", \"%s\")", functionName, arguments.Location, arguments.Unit)
-					//functionResponse := `functionName`(location, unit) // -> get_current_weather('Seoul', 'celsius')
-					functionResponse := "36.5"
+					// NOTE: get your local function's result with the generated arguments
+					functionResponse := "36.5" //functionResponse := get_current_weather('Seoul', 'celsius')
 
-					// FIXME: workaround for error: `'content' is a required property - 'messages.1'`
-					content := "test"
-					message.Content = &content
+					// and append it to the `messages`
+					messages = append(messages, NewChatToolMessage(toolCall.ID, functionResponse))
+				}
+			}
 
-					// generate a chat completion again with a local function result from the generated arguments
-					if created, err := client.CreateChatCompletion(chatCompletionModel, []ChatMessage{
-						NewChatUserMessage("What's the weather like in Seoul?"),
-						message, // = generated function call from the previous generation
-						NewChatFunctionMessage(functionName, functionResponse),
-					}, nil); err != nil {
-						t.Errorf("failed to create chat completion with local function response: %s", err)
-					} else {
-						if len(created.Choices) <= 0 {
-							t.Errorf("there was no returned choice for local function response")
-						}
-					}
+			// generate a chat completion again with a local function result from the generated arguments
+			if created, err := client.CreateChatCompletion(chatCompletionModel, messages, nil); err != nil {
+				t.Errorf("failed to create chat completion with local function response: %s", err)
+			} else {
+				if len(created.Choices) <= 0 {
+					t.Errorf("there was no returned choice for local function response")
 				}
 			}
 		}
