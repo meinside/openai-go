@@ -22,9 +22,23 @@ type GeneratedImages struct {
 type ImageSize string
 
 const (
-	ImageSize256x256   ImageSize = "256x256"
-	ImageSize512x512   ImageSize = "512x512"
-	ImageSize1024x1024 ImageSize = "1024x1024"
+	// for Dall-E-2
+	ImageSize256x256_DallE2   ImageSize = "256x256"
+	ImageSize512x512_DallE2   ImageSize = "512x512"
+	ImageSize1024x1024_DallE2 ImageSize = "1024x1024"
+
+	// for Dall-E-3
+	ImageSize1024x1024_DallE3 ImageSize = "1024x1024"
+	ImageSize1792x1024_DallE3 ImageSize = "1792x1024"
+	ImageSize1024x1792_DallE3 ImageSize = "1024x1792"
+)
+
+// ImageStyle type for constants
+type ImageStyle string
+
+const (
+	ImageStyleVivid   ImageStyle = "vivid"
+	ImageStyleNatural ImageStyle = "natural"
 )
 
 // ImageResponseFormat type for constants
@@ -38,11 +52,39 @@ const (
 // ImageOptions for creating images
 type ImageOptions map[string]any
 
+// SetModel sets the `model` parameter of image generation request.
+//
+// https://platform.openai.com/docs/api-reference/images/create#images-create-model
+func (o ImageOptions) SetModel(model string) ImageOptions {
+	o["model"] = model
+	return o
+}
+
 // SetN sets the `n` parameter of image generation request.
+//
+// NOTE: only 1 supported for model: `dall-e-3`
 //
 // https://platform.openai.com/docs/api-reference/images/create#images/create-n
 func (o ImageOptions) SetN(n int) ImageOptions {
 	o["n"] = n
+	return o
+}
+
+// SetQuality sets the `quality` parameter of image generation request.
+//
+// NOTE: 'hd' supported only for model: `dall-e-3`
+//
+// https://platform.openai.com/docs/api-reference/images/create#images-create-quality
+func (o ImageOptions) SetQuality(quality string) ImageOptions {
+	o["quality"] = quality
+	return o
+}
+
+// SetResponseFormat sets the `response_format` parameter of image generation request.
+//
+// https://platform.openai.com/docs/api-reference/images/create#images/create-response_format
+func (o ImageOptions) SetResponseFormat(responseFormat ImageResponseFormat) ImageOptions {
+	o["response_format"] = responseFormat
 	return o
 }
 
@@ -54,11 +96,13 @@ func (o ImageOptions) SetSize(size ImageSize) ImageOptions {
 	return o
 }
 
-// SetResponseFormat sets the `response_format` parameter of image generation request.
+// SetStyle set the `style` parameter of image generation request.
 //
-// https://platform.openai.com/docs/api-reference/images/create#images/create-response_format
-func (o ImageOptions) SetResponseFormat(responseFormat ImageResponseFormat) ImageOptions {
-	o["response_format"] = responseFormat
+// NOTE: supported only for model: `dall-e-3`
+//
+// https://platform.openai.com/docs/api-reference/images/create#images-create-style
+func (o ImageOptions) SetStyle(style ImageStyle) ImageOptions {
+	o["style"] = style
 	return o
 }
 
@@ -106,6 +150,16 @@ type ImageEditOptions map[string]any
 // https://platform.openai.com/docs/api-reference/images/create-edit#images/create-edit-mask
 func (o ImageEditOptions) SetMask(mask FileParam) ImageEditOptions {
 	o["mask"] = mask
+	return o
+}
+
+// SetModel sets the `model` parameter of image edit request.
+//
+// NOTE: only `dall-e-2` is supported at this time.
+//
+// https://platform.openai.com/docs/api-reference/images/createEdit#images-createedit-model
+func (o ImageEditOptions) SetModel(model string) ImageEditOptions {
+	o["model"] = model
 	return o
 }
 
@@ -181,11 +235,13 @@ func (o ImageVariationOptions) SetN(n int) ImageVariationOptions {
 	return o
 }
 
-// SetSize sets the `size` parameter of image variation request.
+// SetModel sets the `model` parameter of image variation request.
 //
-// https://platform.openai.com/docs/api-reference/images/create-variation#images/create-variation-size
-func (o ImageVariationOptions) SetSize(size ImageSize) ImageVariationOptions {
-	o["size"] = size
+// NOTE: only `dall-e-2` is supported at this time.
+//
+// https://platform.openai.com/docs/api-reference/images/createVariation#images-createvariation-model
+func (o ImageVariationOptions) SetModel(model string) ImageVariationOptions {
+	o["model"] = model
 	return o
 }
 
@@ -194,6 +250,14 @@ func (o ImageVariationOptions) SetSize(size ImageSize) ImageVariationOptions {
 // https://platform.openai.com/docs/api-reference/images/create-variation#images/create-variation-response_format
 func (o ImageVariationOptions) SetResponseFormat(responseFormat ImageResponseFormat) ImageVariationOptions {
 	o["response_format"] = responseFormat
+	return o
+}
+
+// SetSize sets the `size` parameter of image variation request.
+//
+// https://platform.openai.com/docs/api-reference/images/create-variation#images/create-variation-size
+func (o ImageVariationOptions) SetSize(size ImageSize) ImageVariationOptions {
+	o["size"] = size
 	return o
 }
 
