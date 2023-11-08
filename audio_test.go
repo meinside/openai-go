@@ -5,7 +5,10 @@ import (
 	"testing"
 )
 
-const audioModel = "whisper-1"
+const (
+	speechModel = "tts-1"
+	audioModel  = "whisper-1"
+)
 
 func TestAudio(t *testing.T) {
 	_apiKey := os.Getenv("OPENAI_API_KEY")
@@ -17,6 +20,15 @@ func TestAudio(t *testing.T) {
 
 	if len(_apiKey) <= 0 || len(_org) <= 0 {
 		t.Errorf("environment variables `OPENAI_API_KEY` and `OPENAI_ORGANIZATION` are needed")
+	}
+
+	// === CreateSpeech ===
+	if speech, err := client.CreateSpeech(speechModel, "All your base are belong to us.", SpeechVoiceAlloy, nil); err != nil {
+		t.Errorf("failed to create speech: %s", err)
+	} else {
+		if len(speech) <= 0 {
+			t.Errorf("returned speech bytes is empty")
+		}
 	}
 
 	// === CreateTranscription ===

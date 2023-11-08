@@ -26,8 +26,24 @@ type Embedding struct {
 	Index     int       `json:"index"`
 }
 
+// EmbeddingEncodingFormat type for constants
+type EmbeddingEncodingFormat string
+
+const (
+	EmbeddingEncodingFormatFloat  EmbeddingEncodingFormat = "float"
+	EmbeddingEncodingFormatBase64 EmbeddingEncodingFormat = "base64"
+)
+
 // EmbeddingOptions for creating embedding
 type EmbeddingOptions map[string]any
+
+// SetEncodingFormat sets the `encoding_format` parameter of create embedding request.
+//
+// https://platform.openai.com/docs/api-reference/embeddings/create#embeddings-create-encoding_format
+func (o EmbeddingOptions) SetEncodingFormat(format EmbeddingEncodingFormat) EmbeddingOptions {
+	o["encoding_format"] = format
+	return o
+}
 
 // SetUser sets the `user` parameter of create embedding request.
 //

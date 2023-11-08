@@ -42,6 +42,14 @@ type ModelsList struct {
 	Data []Model `json:"data"`
 }
 
+// ModelDeletionStatus struct for API response
+type ModelDeletionStatus struct {
+	CommonResponse
+
+	ID      string `json:"id"`
+	Deleted bool   `json:"deleted"`
+}
+
 // ListModels lists currently available models.
 //
 // https://platform.openai.com/docs/api-reference/models/list
@@ -86,4 +94,27 @@ func (c *Client) RetrieveModel(id string) (response Model, err error) {
 	}
 
 	return Model{}, err
+}
+
+// DeleteFineTuneModel deletes a fine-tuned model.
+//
+// https://platform.openai.com/docs/api-reference/models/delete
+func (c *Client) DeleteFineTuneModel(model string) (response ModelDeletionStatus, err error) {
+	var bytes []byte
+	if bytes, err = c.delete(fmt.Sprintf("v1/models/%s", model), nil); err == nil {
+		if err = json.Unmarshal(bytes, &response); err == nil {
+			if response.Error == nil {
+				return response, nil
+			}
+
+			err = response.Error.err()
+		}
+	} else {
+		var res CommonResponse
+		if e := json.Unmarshal(bytes, &res); e == nil {
+			err = fmt.Errorf("%s: %s", err, res.Error.err())
+		}
+	}
+
+	return ModelDeletionStatus{}, err
 }

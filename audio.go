@@ -18,6 +18,67 @@ type Transcription struct {
 	VTT         *string `json:"vtt,omitempty"`
 }
 
+// SpeechVoice type for constants
+type SpeechVoice string
+
+const (
+	SpeechVoiceAlloy   SpeechVoice = "alloy"
+	SpeechVoiceEcho    SpeechVoice = "echo"
+	SpeechVoiceFable   SpeechVoice = "fable"
+	SpeechVoiceOnyx    SpeechVoice = "onyx"
+	SpeechVoiceNova    SpeechVoice = "nova"
+	SpeechVoiceShimmer SpeechVoice = "shimmer"
+)
+
+// SpeechResponseFormat type for constants
+type SpeechResponseFormat string
+
+const (
+	SpeechResponseFormatMP3  SpeechResponseFormat = "mp3"
+	SpeechResponseFormatOpus SpeechResponseFormat = "opus"
+	SpeechResponseFormatAAC  SpeechResponseFormat = "aac"
+	SpeechResponseFormatFLAC SpeechResponseFormat = "flac"
+)
+
+// SpeechOptions for creating speech
+type SpeechOptions map[string]any
+
+// SetResponseFormat sets the `response_format` parameter of speech request.
+func (o SpeechOptions) SetResponseFormat(format SpeechResponseFormat) SpeechOptions {
+	o["response_format"] = format
+	return o
+}
+
+// SetSpeed sets the `speed` parameter of speech request.
+func (o SpeechOptions) SetSpeed(speed float32) SpeechOptions {
+	o["speed"] = speed
+	return o
+}
+
+// CreateSpeech generates audio from the input text.
+//
+// https://platform.openai.com/docs/api-reference/audio/createSpeech
+func (c *Client) CreateSpeech(model string, input string, voice SpeechVoice, options SpeechOptions) (audio []byte, err error) {
+	if options == nil {
+		options = SpeechOptions{}
+	}
+	options["model"] = model
+	options["input"] = input
+	options["voice"] = voice
+
+	var bytes []byte
+	if bytes, err = c.post("v1/audio/speech", options); err == nil {
+		return bytes, nil
+	} else {
+		var res CommonResponse
+		if e := json.Unmarshal(bytes, &res); e == nil {
+			err = fmt.Errorf("%s: %s", err, res.Error.err())
+		}
+	}
+
+	return nil, err
+}
+
 // TranscriptionResponseFormat type for constants
 type TranscriptionResponseFormat string
 

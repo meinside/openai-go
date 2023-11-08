@@ -25,6 +25,11 @@ func TestFineTuning(t *testing.T) {
 			if created, err := client.CreateFineTuningJob(uploaded.ID, "davinci-002", nil); err != nil {
 				t.Errorf("failed to create fine-tuning job: %s", err)
 			} else {
+				// === ListFineTuningJobs ===
+				if _, err := client.ListFineTuningJobs(nil); err != nil {
+					t.Errorf("failed to list fine-tuning jobs: %s", err)
+				}
+
 				// === RetrieveFineTuningJob ===
 				if retrieved, err := client.RetrieveFineTuningJob(created.ID); err != nil {
 					t.Errorf("failed to retrieve a fine-tuning job: %s", err)

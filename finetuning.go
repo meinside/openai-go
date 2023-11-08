@@ -7,6 +7,14 @@ import (
 
 // https://platform.openai.com/docs/api-reference/fine-tuning
 
+// FineTuningJobs struct
+type FineTuningJobs struct {
+	CommonResponse
+
+	Data    []FineTuningJob `json:"data"`
+	HasMore bool            `json:"has_more"`
+}
+
 // FineTuningJob struct
 type FineTuningJob struct {
 	CommonResponse
@@ -43,7 +51,26 @@ type FineTuningHyperparameters struct {
 	NEpochs any `json:"n_epochs"` // string("Auto") or int
 }
 
-// FineTuningJobOptions for fine-tuning jobs
+// FineTuningJobsOptions for listing fine-tuning jobs
+type FineTuningJobsOptions map[string]any
+
+// SetAfter sets the `after` parameter of fine-tuning jobs listing request.
+//
+// https://platform.openai.com/docs/api-reference/fine-tuning/list#fine-tuning-list-after
+func (o FineTuningJobsOptions) SetAfter(after string) FineTuningJobsOptions {
+	o["after"] = after
+	return o
+}
+
+// SetLimit sets the `limit` parameter of fine-tuning jobs listing request.
+//
+// https://platform.openai.com/docs/api-reference/fine-tuning/list#fine-tuning-list-limit
+func (o FineTuningJobsOptions) SetLimit(limit int) FineTuningJobsOptions {
+	o["limit"] = limit
+	return o
+}
+
+// FineTuningJobOptions for retrieving fine-tuning jobs
 type FineTuningJobOptions map[string]any
 
 // SetValidationFile sets the `validation_file` parameter of fine-tuning job request.
@@ -97,6 +124,33 @@ func (c *Client) CreateFineTuningJob(trainingFileID, model string, options FineT
 	}
 
 	return FineTuningJob{}, err
+}
+
+// ListFineTuningJobs lists your organization's fine-tuning jobs.
+//
+// https://platform.openai.com/docs/api-reference/fine-tuning/list
+func (c *Client) ListFineTuningJobs(options FineTuningJobsOptions) (response FineTuningJobs, err error) {
+	if options == nil {
+		options = FineTuningJobsOptions{}
+	}
+
+	var bytes []byte
+	if bytes, err = c.get("v1/fine_tuning/jobs", options); err == nil {
+		if err = json.Unmarshal(bytes, &response); err == nil {
+			if response.Error == nil {
+				return response, nil
+			}
+
+			err = response.Error.err()
+		}
+	} else {
+		var res CommonResponse
+		if e := json.Unmarshal(bytes, &res); e == nil {
+			err = fmt.Errorf("%s: %s", err, res.Error.err())
+		}
+	}
+
+	return FineTuningJobs{}, err
 }
 
 // RetrieveFineTuningJob retrieves a fine-tuning job.

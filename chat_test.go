@@ -7,6 +7,7 @@ import (
 )
 
 const chatCompletionModel = "gpt-3.5-turbo"
+const chatCompletionVisionModel = "gpt-4-vision-preview"
 
 // === CreateChatCompletion ===
 func TestChatCompletions(t *testing.T) {
@@ -64,7 +65,15 @@ func TestChatCompletionsStream(t *testing.T) {
 			if comp.err == nil {
 				if client.Verbose {
 					if !comp.done {
-						log.Printf("stream response = %s", *comp.response.Choices[0].Delta.Content)
+						if content, err := comp.response.Choices[0].Delta.ContentString(); err == nil {
+							log.Printf("stream response string: %s", content)
+							continue
+						}
+
+						if content, err := comp.response.Choices[0].Delta.ContentArray(); err == nil {
+							log.Printf("stream response messages: %+v", content)
+							continue
+						}
 					}
 				}
 			} else {
@@ -77,6 +86,8 @@ func TestChatCompletionsStream(t *testing.T) {
 }
 
 // === CreateChatCompletion (function) ===
+//
+// example from: https://platform.openai.com/docs/guides/function-calling/parallel-function-calling
 func TestChatCompletionsFunction(t *testing.T) {
 	_apiKey := os.Getenv("OPENAI_API_KEY")
 	_org := os.Getenv("OPENAI_ORGANIZATION")
@@ -89,12 +100,16 @@ func TestChatCompletionsFunction(t *testing.T) {
 		t.Errorf("environment variables `OPENAI_API_KEY` and `OPENAI_ORGANIZATION` are needed")
 	}
 
+	messages := []ChatMessage{
+		NewChatUserMessage("What's the weather like in Seoul?"),
+	}
+
 	// generate a chat completion with function calls
 	if created, err := client.CreateChatCompletion(chatCompletionModel,
-		[]ChatMessage{NewChatUserMessage("What's the weather like in Seoul?")},
+		messages,
 		ChatCompletionOptions{}.
-			SetFunctions([]ChatCompletionFunction{
-				NewChatCompletionFunction(
+			SetTools([]ChatCompletionTool{
+				NewChatCompletionTool(
 					"get_current_weather",
 					"Get the current weather in a given location",
 					NewChatCompletionFunctionParameters().
@@ -103,57 +118,183 @@ func TestChatCompletionsFunction(t *testing.T) {
 						SetRequiredParameters([]string{"location", "unit"}),
 				),
 			}).
-			SetFunctionCall(ChatCompletionFunctionCallAuto)); err != nil {
+			SetToolChoice(ChatCompletionToolChoiceAuto)); err != nil {
 		t.Errorf("failed to create chat completion: %s", err)
 	} else {
 		if len(created.Choices) <= 0 {
 			t.Errorf("there was no returned choice")
 		} else {
-			message := created.Choices[0].Message
+			responseMessage := created.Choices[0].Message
 
-			if message.FunctionCall == nil {
-				t.Errorf("there was no returned function call")
-			} else {
-				functionName := message.FunctionCall.Name
-				if functionName == "" {
-					t.Errorf("there was no returned function call name")
+			// FIXME: workaround for error: `'content' is a required property - 'messages.1'` <= assistant message's content should not be nil?
+			content := "test"
+			responseMessage.Content = &content
+
+			// append the first response to the `messages`
+			messages = append(messages, responseMessage)
+
+			for _, toolCall := range responseMessage.ToolCalls {
+				function := toolCall.Function
+
+				// parse returned arguments into a struct
+				type parsed struct {
+					Location string `json:"location"`
+					Unit     string `json:"unit"`
 				}
-
-				if message.FunctionCall.Arguments == nil {
-					t.Errorf("there were no returned function call arguments")
+				var arguments parsed
+				if err := toolCall.ArgumentsInto(&arguments); err != nil {
+					t.Errorf("failed to parse arguments into struct: %s", err)
 				} else {
+					t.Logf("will call %s(\"%s\", \"%s\")", function.Name, arguments.Location, arguments.Unit)
+
+					// NOTE: get your local function's result with the generated arguments
+					functionResponse := "36.5" //functionResponse := get_current_weather('Seoul', 'celsius')
+
+					// and append it to the `messages`
+					messages = append(messages, NewChatToolMessage(toolCall.ID, functionResponse))
+				}
+			}
+
+			// generate a chat completion again with a local function result from the generated arguments
+			if created, err := client.CreateChatCompletion(chatCompletionModel, messages, nil); err != nil {
+				t.Errorf("failed to create chat completion with local function response: %s", err)
+			} else {
+				if len(created.Choices) <= 0 {
+					t.Errorf("there was no returned choice for local function response")
+				}
+			}
+		}
+	}
+}
+
+// === CreateChatCompletion (function - stream) ===
+//
+// example from: https://platform.openai.com/docs/guides/function-calling/parallel-function-calling
+func TestChatCompletionsFunctionStream(t *testing.T) {
+	_apiKey := os.Getenv("OPENAI_API_KEY")
+	_org := os.Getenv("OPENAI_ORGANIZATION")
+	_verbose := os.Getenv("VERBOSE")
+
+	client := NewClient(_apiKey, _org)
+	client.Verbose = _verbose == "true"
+
+	if len(_apiKey) <= 0 || len(_org) <= 0 {
+		t.Errorf("environment variables `OPENAI_API_KEY` and `OPENAI_ORGANIZATION` are needed")
+	}
+
+	type completion struct {
+		response ChatCompletion
+		done     bool
+		err      error
+	}
+	ch := make(chan completion, 1)
+
+	messages := []ChatMessage{
+		NewChatUserMessage("What's the weather like in Seoul?"),
+	}
+
+	// generate a chat completion with function calls
+	if _, err := client.CreateChatCompletion(chatCompletionModel,
+		messages,
+		ChatCompletionOptions{}.
+			SetTools([]ChatCompletionTool{
+				NewChatCompletionTool(
+					"get_current_weather",
+					"Get the current weather in a given location",
+					NewChatCompletionFunctionParameters().
+						AddPropertyWithDescription("location", "string", "The city and state, e.g. San Francisco, CA").
+						AddPropertyWithEnums("unit", "string", []string{"celsius", "fahrenheit"}).
+						SetRequiredParameters([]string{"location", "unit"}),
+				),
+			}).
+			SetToolChoice(ChatCompletionToolChoiceAuto).
+			SetStream(func(response ChatCompletion, done bool, err error) {
+				ch <- completion{response: response, done: done, err: err}
+				if done {
+					toolCall := response.Choices[0].Message.ToolCalls[0]
+					function := toolCall.Function
+
 					// parse returned arguments into a struct
 					type parsed struct {
 						Location string `json:"location"`
 						Unit     string `json:"unit"`
 					}
 					var arguments parsed
-					if err := message.FunctionCall.ArgumentsInto(&arguments); err != nil {
+					if err := toolCall.ArgumentsInto(&arguments); err != nil {
 						t.Errorf("failed to parse arguments into struct: %s", err)
+					} else {
+						t.Logf("will call %s(\"%s\", \"%s\")", function.Name, arguments.Location, arguments.Unit)
+
+						// NOTE: get your local function's result with the generated arguments
 					}
 
-					t.Logf("will call %s(\"%s\", \"%s\")", functionName, arguments.Location, arguments.Unit)
-					//functionResponse := `functionName`(location, unit) // -> get_current_weather('Seoul', 'celsius')
-					functionResponse := "36.5"
+					close(ch)
+				}
+			})); err != nil {
+		t.Errorf("failed to create chat completion with stream: %s", err)
+	} else {
+		for comp := range ch {
+			if comp.err == nil {
+				if client.Verbose {
+					if !comp.done {
+						if len(comp.response.Choices[0].Delta.ToolCalls) > 0 {
+							toolCall := comp.response.Choices[0].Delta.ToolCalls[0]
+							function := toolCall.Function
 
-					// FIXME: workaround for error: `'content' is a required property - 'messages.1'`
-					content := "test"
-					message.Content = &content
+							if function.Name != "" {
+								log.Printf("stream response function name: %s", function.Name)
+								continue
+							}
 
-					// generate a chat completion again with a local function result from the generated arguments
-					if created, err := client.CreateChatCompletion(chatCompletionModel, []ChatMessage{
-						NewChatUserMessage("What's the weather like in Seoul?"),
-						message, // = generated function call from the previous generation
-						NewChatFunctionMessage(functionName, functionResponse),
-					}, nil); err != nil {
-						t.Errorf("failed to create chat completion with local function response: %s", err)
-					} else {
-						if len(created.Choices) <= 0 {
-							t.Errorf("there was no returned choice for local function response")
+							if function.Arguments != "" {
+								log.Printf("stream response function arguments (partial): %s", function.Arguments)
+								continue
+							}
 						}
 					}
 				}
+			} else {
+				t.Errorf("there was an error in response stream: %s", comp.err)
 			}
 		}
+	}
+}
+
+// === CreateChatCompletion (vision) ===
+//
+// https://platform.openai.com/docs/guides/vision/vision
+func TestChatCompletionsVision(t *testing.T) {
+	_apiKey := os.Getenv("OPENAI_API_KEY")
+	_org := os.Getenv("OPENAI_ORGANIZATION")
+	_verbose := os.Getenv("VERBOSE")
+
+	client := NewClient(_apiKey, _org)
+	client.Verbose = _verbose == "true"
+
+	if len(_apiKey) <= 0 || len(_org) <= 0 {
+		t.Errorf("environment variables `OPENAI_API_KEY` and `OPENAI_ORGANIZATION` are needed")
+	}
+
+	if image, err := NewFileParamFromFilepath("./sample/pepe.png"); err == nil {
+		if created, err := client.CreateChatCompletion(chatCompletionVisionModel,
+			[]ChatMessage{
+				NewChatUserMessage[[]ChatMessageContent]([]ChatMessageContent{
+					NewChatMessageContentWithText("What’s in this image?"),
+					//NewChatMessageContentWithImageURL("https://user-images.githubusercontent.com/185988/60949207-a9daf400-a32f-11e9-8f11-d68d31cb0c31.png"),
+					NewChatMessageContentWithFileParam(image),
+				}),
+			},
+			nil); err != nil {
+			t.Errorf("failed to create chat completion for vision: %s", err)
+		} else {
+			if len(created.Choices) <= 0 {
+				t.Errorf("there was no returned choice")
+			}
+
+			// test
+			log.Printf("result = %+v", created)
+		}
+	} else {
+		t.Errorf("failed to open sample image: %s", err)
 	}
 }

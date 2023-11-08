@@ -3,8 +3,10 @@ package openai
 // https://platform.openai.com/docs/api-reference/chat
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"net/http"
 )
 
 // ChatMessageRole type for constants
@@ -14,33 +16,81 @@ const (
 	ChatMessageRoleSystem    ChatMessageRole = "system"
 	ChatMessageRoleUser      ChatMessageRole = "user"
 	ChatMessageRoleAssistant ChatMessageRole = "assistant"
-	ChatMessageRoleFunction  ChatMessageRole = "function"
+	ChatMessageRoleTool      ChatMessageRole = "tool"
 )
 
-// ChatCompletionFunctionCall struct
-type ChatCompletionFunctionCall struct {
-	Name      string  `json:"name"`
-	Arguments *string `json:"arguments,omitempty"` // = JSON string
+// ToolCall struct
+type ToolCall struct {
+	ID       string `json:"id"`
+	Type     string `json:"type"` // == 'function'
+	Function struct {
+		Name      string `json:"name"`
+		Arguments string `json:"arguments"`
+	} `json:"function"`
 }
 
-// ArgumentsParsed returns the parsed map from ChatCompletionFunctionCall.
-func (c ChatCompletionFunctionCall) ArgumentsParsed() (result map[string]any, err error) {
-	if c.Arguments != nil {
-		err = json.Unmarshal([]byte(*c.Arguments), &result)
+// ArgumentsParsed returns the parsed map from ToolCall.
+func (c ToolCall) ArgumentsParsed() (result map[string]any, err error) {
+	if c.Function.Arguments != "" {
+		err = json.Unmarshal([]byte(c.Function.Arguments), &result)
 	}
 
 	return result, err
 }
 
 // ArgumentsInto parses the generated arguments into a given interface
-func (c ChatCompletionFunctionCall) ArgumentsInto(out any) (err error) {
-	if c.Arguments == nil {
-		err = fmt.Errorf("parse failed: `arguments` is nil")
+func (c ToolCall) ArgumentsInto(out any) (err error) {
+	if c.Function.Arguments == "" {
+		err = fmt.Errorf("parse failed: `arguments` is empty")
 	} else {
-		err = json.Unmarshal([]byte(*c.Arguments), &out)
+		err = json.Unmarshal([]byte(c.Function.Arguments), &out)
 	}
 
 	return err
+}
+
+// ChatMessageContent struct
+type ChatMessageContent struct {
+	Type string `json:"type"`
+
+	Text     *string `json:"text,omitempty"`
+	ImageURL any     `json:"image_url,omitempty"`
+}
+
+// NewChatMessageContentWithText returns a ChatMessageContent struct with given `text`.
+func NewChatMessageContentWithText(text string) ChatMessageContent {
+	return ChatMessageContent{
+		Type: "text",
+		Text: &text,
+	}
+}
+
+// NewChatMessageContentWithImageURL returns a ChatMessageContent struct with given `url`.
+func NewChatMessageContentWithImageURL(url string) ChatMessageContent {
+	return ChatMessageContent{
+		Type:     "image_url",
+		ImageURL: &url,
+	}
+}
+
+// converts given bytes array to base64-encoded data URL
+func bytesToDataURL(bytes []byte) string {
+	return fmt.Sprintf("data:%s;base64,%s", http.DetectContentType(bytes), base64.StdEncoding.EncodeToString(bytes))
+}
+
+// NewChatMessageContentWithBytes returns a ChatMessageContent struct with given `bytes`.
+func NewChatMessageContentWithBytes(bytes []byte) ChatMessageContent {
+	return ChatMessageContent{
+		Type: "image_url",
+		ImageURL: map[string]string{
+			"url": bytesToDataURL(bytes),
+		},
+	}
+}
+
+// NewChatMessageContentWithFileParam returns a ChatMessageContent struct with given `file`.
+func NewChatMessageContentWithFileParam(file FileParam) ChatMessageContent {
+	return NewChatMessageContentWithBytes(file.bs)
 }
 
 // ChatMessage struct for chat completion
@@ -48,32 +98,66 @@ func (c ChatCompletionFunctionCall) ArgumentsInto(out any) (err error) {
 // https://platform.openai.com/docs/guides/chat/introduction
 type ChatMessage struct {
 	Role    ChatMessageRole `json:"role"`
-	Content *string         `json:"content,omitempty"`
+	Content any             `json:"content,omitempty"` // NOTE: string | []ChatMessageContent
 
 	// for function call
-	Name         *string                     `json:"name,omitempty"`
-	FunctionCall *ChatCompletionFunctionCall `json:"function_call,omitempty"`
+	ToolCalls  []ToolCall `json:"tool_calls,omitempty"`   // when role == 'assistant'
+	ToolCallID *string    `json:"tool_call_id,omitempty"` // when role == 'tool'
 }
 
-// ChatCompletionFunction struct for chat completion function
-//
-// https://platform.openai.com/docs/api-reference/chat/create#chat/create-functions
-type ChatCompletionFunction struct {
-	Name        string         `json:"name"`
-	Description *string        `json:"description,omitempty"`
-	Parameters  map[string]any `json:"parameters,omitempty"`
+// ContentString tries to return the `content` value as a string.
+func (m ChatMessage) ContentString() (string, error) {
+	if m.Content != nil {
+		if str, ok := m.Content.(string); ok {
+			return str, nil
+		} else if str, ok := m.Content.(*string); ok { // FIXME: really needed?
+			return *str, nil
+		}
+
+		return "", fmt.Errorf("returned `content` is not a string")
+	}
+
+	return "", fmt.Errorf("returned `content` is nil, cannot return as a string")
+}
+
+// ContentArray tries to return the `content` value as a content array.
+func (m ChatMessage) ContentArray() ([]ChatMessageContent, error) {
+	if m.Content != nil {
+		if arr, ok := m.Content.([]ChatMessageContent); ok {
+			return arr, nil
+		}
+
+		return nil, fmt.Errorf("returned `content` is not a content array")
+	}
+
+	return nil, fmt.Errorf("returned `content` is nil, cannot return as a content array")
 }
 
 // ChatCompletionFunctionParameters type
 type ChatCompletionFunctionParameters map[string]any
 
-// NewChatCompletionFunction returns a new chat completion function.
-func NewChatCompletionFunction(name, description string, parameters ChatCompletionFunctionParameters) ChatCompletionFunction {
-	return ChatCompletionFunction{
-		Name:        name,
-		Description: &description,
-		Parameters:  parameters,
+// ChatCompletionTool struct for chat completion function
+//
+// https://platform.openai.com/docs/api-reference/chat/create#chat-create-tools
+type ChatCompletionTool struct {
+	Type     string `json:"type"` // == 'function'
+	Function struct {
+		Name        string                           `json:"name"`
+		Description *string                          `json:"description,omitempty"`
+		Parameters  ChatCompletionFunctionParameters `json:"parameters"`
+	} `json:"function"`
+}
+
+// NewChatCompletionTool returns a ChatCompletionTool.
+func NewChatCompletionTool(name, description string, parameters ChatCompletionFunctionParameters) ChatCompletionTool {
+	tool := ChatCompletionTool{
+		Type: "function",
 	}
+	tool.Function.Name = name
+	tool.Function.Description = &description
+	tool.Function.Parameters = parameters
+
+	return tool
 }
 
 // NewChatCompletionFunctionParameters returns an empty ChatCompletionFunctionParameters.
@@ -117,15 +201,15 @@ func (p ChatCompletionFunctionParameters) SetRequiredParameters(names []string) 
 	return p
 }
 
-// ChatCompletionFunctionCallMode type
+// ChatCompletionToolChoiceMode type
 //
-// https://platform.openai.com/docs/api-reference/chat/create#chat/create-function_call
-type ChatCompletionFunctionCallMode string
+// https://platform.openai.com/docs/api-reference/chat/create#chat-create-tool_choice
+type ChatCompletionToolChoiceMode string
 
-// ChatCompletionFunctionCall constants
+// ChatCompletionToolChoiceMode constants
 const (
-	ChatCompletionFunctionCallNone ChatCompletionFunctionCallMode = "none"
-	ChatCompletionFunctionCallAuto ChatCompletionFunctionCallMode = "auto"
+	ChatCompletionToolChoiceNone ChatCompletionToolChoiceMode = "none"
+	ChatCompletionToolChoiceAuto ChatCompletionToolChoiceMode = "auto"
 )
 
 // NewChatSystemMessage returns a new ChatMessage with system role.
@@ -136,11 +220,16 @@ func NewChatSystemMessage(message string) ChatMessage {
 	}
 }
 
+// ChatUserMessageContentTypes interface for type constraints in `NewChatUserMessage`
+type ChatUserMessageContentTypes interface {
+	string | []ChatMessageContent
+}
+
 // NewChatUserMessage returns a new ChatMessage with user role.
-func NewChatUserMessage(message string) ChatMessage {
+func NewChatUserMessage[T ChatUserMessageContentTypes](contents T) ChatMessage {
 	return ChatMessage{
 		Role:    ChatMessageRoleUser,
-		Content: &message,
+		Content: contents,
 	}
 }
 
@@ -152,12 +241,12 @@ func NewChatAssistantMessage(message string) ChatMessage {
 	}
 }
 
-// NewChatFunctionMessage returns a new ChatMessage with function role.
-func NewChatFunctionMessage(name, content string) ChatMessage {
+// NewChatToolMessage returns a new ChatMesssage with tool role.
+func NewChatToolMessage(toolCallID, content string) ChatMessage {
 	return ChatMessage{
-		Role:    ChatMessageRoleFunction,
-		Name:    &name,
-		Content: &content,
+		Role:       ChatMessageRoleTool,
+		Content:    &content,
+		ToolCallID: &toolCallID,
 	}
 }
 
@@ -179,32 +268,94 @@ type ChatCompletion struct {
 	Usage   Usage                  `json:"usage"`
 }
 
+// ChatCompletionResponseFormat struct for chat completion request
+type ChatCompletionResponseFormat struct {
+	Type ChatCompletionResponseFormatType `json:"type,omitempty"`
+}
+
+// ChatCompletionResponseFormatType type for constants
+type ChatCompletionResponseFormatType string
+
+// ChatCompletionResponseFormatType constants
+const (
+	ChatCompletionResponseFormatTypeText       ChatCompletionResponseFormatType = "text"
+	ChatCompletionResponseFormatTypeJSONObject ChatCompletionResponseFormatType = "json_object"
+)
+
 // ChatCompletionOptions for creating chat completions
 type ChatCompletionOptions map[string]any
 
-// SetFunctions sets the `functions` parameter of chat completion request.
+// SetFrequencyPenalty sets the `frequency_penalty` parameter of chat completions.
 //
-// https://platform.openai.com/docs/api-reference/chat/create#chat/create-functions
-func (o ChatCompletionOptions) SetFunctions(functions []ChatCompletionFunction) ChatCompletionOptions {
-	o["functions"] = functions
+// https://platform.openai.com/docs/api-reference/chat/create#chat/create-frequency_penalty
+func (o ChatCompletionOptions) SetFrequencyPenalty(frequencyPenalty float64) ChatCompletionOptions {
+	o["frequency_penalty"] = frequencyPenalty
 	return o
 }
 
-// SetFunctionCall sets the `function_call` parameter of chat completion request.
+// SetLogitBias sets the `logit_bias` parameter of chat completions.
 //
-// https://platform.openai.com/docs/api-reference/chat/create#chat/create-function_call
-func (o ChatCompletionOptions) SetFunctionCall(functionCall ChatCompletionFunctionCallMode) ChatCompletionOptions {
-	o["function_call"] = functionCall
+// https://platform.openai.com/docs/api-reference/chat/create#chat/create-logit_bias
+func (o ChatCompletionOptions) SetLogitBias(logitBias map[string]any) ChatCompletionOptions {
+	o["logit_bias"] = logitBias
 	return o
 }
 
-// SetFunctionCallWithName sets the `function_call` parameter of chat completion request.
+// SetMaxTokens sets the `max_tokens` parameter of chat completions.
 //
-// https://platform.openai.com/docs/api-reference/chat/create#chat/create-function_call
-func (o ChatCompletionOptions) SetFunctionCallWithName(name string) ChatCompletionOptions {
-	o["function_call"] = map[string]any{
-		"name": name,
-	}
+// https://platform.openai.com/docs/api-reference/chat/create#chat/create-max_tokens
+func (o ChatCompletionOptions) SetMaxTokens(maxTokens int) ChatCompletionOptions {
+	o["max_tokens"] = maxTokens
+	return o
+}
+
+// SetN sets the `n` parameter of chat completions.
+//
+// https://platform.openai.com/docs/api-reference/chat/create#chat/create-n
+func (o ChatCompletionOptions) SetN(n int) ChatCompletionOptions {
+	o["n"] = n
+	return o
+}
+
+// SetPresencePenalty sets the `presence_penalty` parameter of chat completions.
+//
+// https://platform.openai.com/docs/api-reference/chat/create#chat/create-presence_penalty
+func (o ChatCompletionOptions) SetPresencePenalty(presencePenalty float64) ChatCompletionOptions {
+	o["presence_penalty"] = presencePenalty
+	return o
+}
+
+// SetResponseFormat sets the `response_format` parameter of chat completions.
+//
+// https://platform.openai.com/docs/api-reference/chat/create#chat-create-response_format
+func (o ChatCompletionOptions) SetResponseFormat(format ChatCompletionResponseFormat) ChatCompletionOptions {
+	o["response_format"] = format
+	return o
+}
+
+// SetSeed sets the `seed` parameter of chat completions.
+//
+// https://platform.openai.com/docs/api-reference/chat/create#chat-create-seed
+func (o ChatCompletionOptions) SetSeed(seed int64) ChatCompletionOptions {
+	o["seed"] = seed
+	return o
+}
+
+// SetStop sets the `stop` parameter of chat completions.
+//
+// https://platform.openai.com/docs/api-reference/chat/create#chat/create-stop
+func (o ChatCompletionOptions) SetStop(stop any) ChatCompletionOptions {
+	o["stop"] = stop
+	return o
+}
+
+// SetStream sets the `stream` parameter of chat completions.
+//
+// https://developer.mozilla.org/en-US/docs/Web/API/Server-sent_events/Using_server-sent_events#event_stream_format
+//
+// https://platform.openai.com/docs/api-reference/chat/create#chat/create-stream
+func (o ChatCompletionOptions) SetStream(cb callback) ChatCompletionOptions {
+	o["stream"] = cb
 	return o
 }
 
@@ -224,61 +375,32 @@ func (o ChatCompletionOptions) SetTopP(topP float64) ChatCompletionOptions {
 	return o
 }
 
-// SetN sets the `n` parameter of chat completions.
+// SetTools sets the `tools` parameter of chat completion request.
 //
-// https://platform.openai.com/docs/api-reference/chat/create#chat/create-n
-func (o ChatCompletionOptions) SetN(n int) ChatCompletionOptions {
-	o["n"] = n
+// https://platform.openai.com/docs/api-reference/chat/create#chat-create-tools
+func (o ChatCompletionOptions) SetTools(tools []ChatCompletionTool) ChatCompletionOptions {
+	o["tools"] = tools
 	return o
 }
 
-// SetStream sets the `stream` parameter of chat completions.
+// SetToolChoice sets the `tool_choice` parameter of chat completion request.
 //
-// https://developer.mozilla.org/en-US/docs/Web/API/Server-sent_events/Using_server-sent_events#event_stream_format
-//
-// https://platform.openai.com/docs/api-reference/chat/create#chat/create-stream
-func (o ChatCompletionOptions) SetStream(cb callback) ChatCompletionOptions {
-	o["stream"] = cb
+// https://platform.openai.com/docs/api-reference/chat/create#chat-create-tool_choice
+func (o ChatCompletionOptions) SetToolChoice(choice ChatCompletionToolChoiceMode) ChatCompletionOptions {
+	o["tool_choice"] = choice
 	return o
 }
 
-// SetStop sets the `stop` parameter of chat completions.
+// SetToolChoiceWithName sets the `tool_choice` parameter of chat completion request with given function name.
 //
-// https://platform.openai.com/docs/api-reference/chat/create#chat/create-stop
-func (o ChatCompletionOptions) SetStop(stop any) ChatCompletionOptions {
-	o["stop"] = stop
-	return o
-}
-
-// SetMaxTokens sets the `max_tokens` parameter of chat completions.
-//
-// https://platform.openai.com/docs/api-reference/chat/create#chat/create-max_tokens
-func (o ChatCompletionOptions) SetMaxTokens(maxTokens int) ChatCompletionOptions {
-	o["max_tokens"] = maxTokens
-	return o
-}
-
-// SetPresencePenalty sets the `presence_penalty` parameter of chat completions.
-//
-// https://platform.openai.com/docs/api-reference/chat/create#chat/create-presence_penalty
-func (o ChatCompletionOptions) SetPresencePenalty(presencePenalty float64) ChatCompletionOptions {
-	o["presence_penalty"] = presencePenalty
-	return o
-}
-
-// SetFrequencyPenalty sets the `frequency_penalty` parameter of chat completions.
-//
-// https://platform.openai.com/docs/api-reference/chat/create#chat/create-frequency_penalty
-func (o ChatCompletionOptions) SetFrequencyPenalty(frequencyPenalty float64) ChatCompletionOptions {
-	o["frequency_penalty"] = frequencyPenalty
-	return o
-}
-
-// SetLogitBias sets the `logit_bias` parameter of chat completions.
-//
-// https://platform.openai.com/docs/api-reference/chat/create#chat/create-logit_bias
-func (o ChatCompletionOptions) SetLogitBias(logitBias map[string]any) ChatCompletionOptions {
-	o["logit_bias"] = logitBias
+// https://platform.openai.com/docs/api-reference/chat/create#chat-create-tool_choice
+func (o ChatCompletionOptions) SetToolChoiceWithName(name string) ChatCompletionOptions {
+	o["tool_choice"] = map[string]any{
+		"type": "function",
+		"function": map[string]any{
+			"name": name,
+		},
+	}
 	return o
 }
 
