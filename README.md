@@ -40,25 +40,32 @@ and then
 $ go test
 ```
 
+**CAUTION**: It is advised to set usage limits before running tests; running all tests at once costs about ~$0.2.
+
 ## Todos/WIP
 
 ### Implemented
 
-All API functions so far (2023.08.24.) are implemented, but not all of them were tested on a paid account.
+All API functions so far (2023.11.07.) are implemented, but not all of them were tested on a paid account.
 
-- [X] [Models](https://platform.openai.com/docs/api-reference/models): works on a non-paid account
-- [X] [Completions](https://platform.openai.com/docs/api-reference/completions)
-- [X] [Chat](https://platform.openai.com/docs/api-reference/chat)
-- [X] [Edits](https://platform.openai.com/docs/api-reference/edits)
-- [X] [Images](https://platform.openai.com/docs/api-reference/images)
-- [X] [Embeddings](https://platform.openai.com/docs/api-reference/embeddings)
 - [X] [Audio](https://platform.openai.com/docs/api-reference/audio)
-- [X] [Files](https://platform.openai.com/docs/api-reference/files)
-- [X] (DEPRECATED) ~~[Fine-tunes](https://platform.openai.com/docs/api-reference/fine-tunes)~~
+- [X] [Chat](https://platform.openai.com/docs/api-reference/chat)
+- [X] [Completions](https://platform.openai.com/docs/api-reference/completions)
+- [X] [Embeddings](https://platform.openai.com/docs/api-reference/embeddings)
 - [X] [Fine-tuning](https://platform.openai.com/docs/api-reference/fine-tuning)
+- [X] [Files](https://platform.openai.com/docs/api-reference/files)
+- [X] [Images](https://platform.openai.com/docs/api-reference/images)
+- [X] [Models](https://platform.openai.com/docs/api-reference/models): works on a non-paid account
 - [X] [Moderations](https://platform.openai.com/docs/api-reference/moderations): works on a non-paid account
 
 - [X] ~~Stream([server-sent events](https://developer.mozilla.org/en-US/docs/Web/API/Server-sent_events/Using_server-sent_events#event_stream_format)) options are not implemented yet.~~ thanks to @tectiv3 :-)
+
+### Beta
+
+- [ ] [Assistants](https://platform.openai.com/docs/api-reference/assistants)
+- [ ] [Threads](https://platform.openai.com/docs/api-reference/threads)
+- [ ] [Messages](https://platform.openai.com/docs/api-reference/messages)
+- [ ] [Runs](https://platform.openai.com/docs/api-reference/runs)
 
 ## License
 
