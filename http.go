@@ -77,12 +77,12 @@ func (e *Error) err() error {
 
 func stream(res *http.Response, cb callback) {
 	defer res.Body.Close()
-	scanner := bufio.NewScanner(res.Body)
-	fun := ChatCompletionFunctionCall{
-		Arguments: new(string),
-		Name: "",
+
+	fn := ToolCall{
+		Type: "function",
 	}
 
+	scanner := bufio.NewScanner(res.Body)
 	for scanner.Scan() {
 		var entry ChatCompletion
 		b := scanner.Bytes()
@@ -99,18 +99,26 @@ func stream(res *http.Response, cb callback) {
 				return
 			}
 
-			if entry.Choices[0].Delta.FunctionCall != nil {
-				if entry.Choices[0].Delta.FunctionCall.Name != "" {
-					fun.Name = entry.Choices[0].Delta.FunctionCall.Name
-				} else if entry.Choices[0].Delta.FunctionCall.Arguments != nil {
-					*fun.Arguments = *fun.Arguments + *entry.Choices[0].Delta.FunctionCall.Arguments
+			if len(entry.Choices[0].Delta.ToolCalls) > 0 {
+				toolCall := entry.Choices[0].Delta.ToolCalls[0]
+
+				if toolCall.ID != "" {
+					fn.ID = toolCall.ID
+				}
+
+				if toolCall.Function.Name != "" {
+					fn.Function.Name = toolCall.Function.Name
+				} else if toolCall.Function.Arguments != "" {
+					fn.Function.Arguments = fn.Function.Arguments + toolCall.Function.Arguments
 				}
 			}
 
-			if entry.Choices[0].FinishReason == "function_call" {
-				entry.Choices[0].Message.FunctionCall = &fun
+			if entry.Choices[0].FinishReason == "tool_calls" {
+				entry.Choices[0].Message.ToolCalls = []ToolCall{fn}
+
 				cb(entry, false, nil)
 				cb(entry, true, nil)
+
 				return
 			}
 			cb(entry, false, nil)

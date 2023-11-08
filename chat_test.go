@@ -167,6 +167,99 @@ func TestChatCompletionsFunction(t *testing.T) {
 	}
 }
 
+// === CreateChatCompletion (function - stream) ===
+//
+// example from: https://platform.openai.com/docs/guides/function-calling/parallel-function-calling
+func TestChatCompletionsFunctionStream(t *testing.T) {
+	_apiKey := os.Getenv("OPENAI_API_KEY")
+	_org := os.Getenv("OPENAI_ORGANIZATION")
+	_verbose := os.Getenv("VERBOSE")
+
+	client := NewClient(_apiKey, _org)
+	client.Verbose = _verbose == "true"
+
+	if len(_apiKey) <= 0 || len(_org) <= 0 {
+		t.Errorf("environment variables `OPENAI_API_KEY` and `OPENAI_ORGANIZATION` are needed")
+	}
+
+	type completion struct {
+		response ChatCompletion
+		done     bool
+		err      error
+	}
+	ch := make(chan completion, 1)
+
+	messages := []ChatMessage{
+		NewChatUserMessage("What's the weather like in Seoul?"),
+	}
+
+	// generate a chat completion with function calls
+	if _, err := client.CreateChatCompletion(chatCompletionModel,
+		messages,
+		ChatCompletionOptions{}.
+			SetTools([]ChatCompletionTool{
+				NewChatCompletionTool(
+					"get_current_weather",
+					"Get the current weather in a given location",
+					NewChatCompletionFunctionParameters().
+						AddPropertyWithDescription("location", "string", "The city and state, e.g. San Francisco, CA").
+						AddPropertyWithEnums("unit", "string", []string{"celsius", "fahrenheit"}).
+						SetRequiredParameters([]string{"location", "unit"}),
+				),
+			}).
+			SetToolChoice(ChatCompletionToolChoiceAuto).
+			SetStream(func(response ChatCompletion, done bool, err error) {
+				ch <- completion{response: response, done: done, err: err}
+				if done {
+					toolCall := response.Choices[0].Message.ToolCalls[0]
+					function := toolCall.Function
+
+					// parse returned arguments into a struct
+					type parsed struct {
+						Location string `json:"location"`
+						Unit     string `json:"unit"`
+					}
+					var arguments parsed
+					if err := toolCall.ArgumentsInto(&arguments); err != nil {
+						t.Errorf("failed to parse arguments into struct: %s", err)
+					} else {
+						t.Logf("will call %s(\"%s\", \"%s\")", function.Name, arguments.Location, arguments.Unit)
+
+						// NOTE: get your local function's result with the generated arguments
+					}
+
+					close(ch)
+				}
+			})); err != nil {
+		t.Errorf("failed to create chat completion with stream: %s", err)
+	} else {
+		for comp := range ch {
+			if comp.err == nil {
+				if client.Verbose {
+					if !comp.done {
+						if len(comp.response.Choices[0].Delta.ToolCalls) > 0 {
+							toolCall := comp.response.Choices[0].Delta.ToolCalls[0]
+							function := toolCall.Function
+
+							if function.Name != "" {
+								log.Printf("stream response function name: %s", function.Name)
+								continue
+							}
+
+							if function.Arguments != "" {
+								log.Printf("stream response function arguments (partial): %s", function.Arguments)
+								continue
+							}
+						}
+					}
+				}
+			} else {
+				t.Errorf("there was an error in response stream: %s", comp.err)
+			}
+		}
+	}
+}
+
 // === CreateChatCompletion (vision) ===
 //
 // https://platform.openai.com/docs/guides/vision/vision

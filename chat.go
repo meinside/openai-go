@@ -19,14 +19,6 @@ const (
 	ChatMessageRoleTool      ChatMessageRole = "tool"
 )
 
-// ChatCompletionFunctionCall struct
-//
-// XXX: DEPRECATED
-type ChatCompletionFunctionCall struct {
-	Name      string  `json:"name"`
-	Arguments *string `json:"arguments,omitempty"` // = JSON string
-}
-
 // ToolCall struct
 type ToolCall struct {
 	ID       string `json:"id"`
@@ -109,10 +101,8 @@ type ChatMessage struct {
 	Content any             `json:"content,omitempty"` // NOTE: string | []ChatMessageContent
 
 	// for function call
-	Name         *string                     `json:"name,omitempty"`          // XXX: DEPRECATED
-	FunctionCall *ChatCompletionFunctionCall `json:"function_call,omitempty"` // XXX: DEPRECATED
-	ToolCalls    []ToolCall                  `json:"tool_calls,omitempty"`    // when role == 'assistant'
-	ToolCallID   *string                     `json:"tool_call_id,omitempty"`  // when role == 'tool'
+	ToolCalls  []ToolCall `json:"tool_calls,omitempty"`   // when role == 'assistant'
+	ToolCallID *string    `json:"tool_call_id,omitempty"` // when role == 'tool'
 }
 
 // ContentString tries to return the `content` value as a string.
