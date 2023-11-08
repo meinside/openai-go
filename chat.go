@@ -21,12 +21,15 @@ const (
 
 // ToolCall struct
 type ToolCall struct {
-	ID       string `json:"id"`
-	Type     string `json:"type"` // == 'function'
-	Function struct {
-		Name      string `json:"name"`
-		Arguments string `json:"arguments"`
-	} `json:"function"`
+	ID       string           `json:"id"`
+	Type     string           `json:"type"` // == 'function'
+	Function ToolCallFunction `json:"function"`
+}
+
+// ToolCallFunction struct for ToolCall
+type ToolCallFunction struct {
+	Name      string `json:"name"`
+	Arguments string `json:"arguments"`
 }
 
 // ArgumentsParsed returns the parsed map from ToolCall.
@@ -140,22 +143,27 @@ type ChatCompletionFunctionParameters map[string]any
 //
 // https://platform.openai.com/docs/api-reference/chat/create#chat-create-tools
 type ChatCompletionTool struct {
-	Type     string `json:"type"` // == 'function'
-	Function struct {
-		Name        string                           `json:"name"`
-		Description *string                          `json:"description,omitempty"`
-		Parameters  ChatCompletionFunctionParameters `json:"parameters"`
-	} `json:"function"`
+	Type     string                     `json:"type"` // == 'function'
+	Function ChatCompletionToolFunction `json:"function"`
+}
+
+// ChatCompletionToolFunction struct
+type ChatCompletionToolFunction struct {
+	Name        string                           `json:"name"`
+	Description *string                          `json:"description,omitempty"`
+	Parameters  ChatCompletionFunctionParameters `json:"parameters"`
 }
 
 // NewChatCompletionTool returns a ChatCompletionTool.
 func NewChatCompletionTool(name, description string, parameters ChatCompletionFunctionParameters) ChatCompletionTool {
 	tool := ChatCompletionTool{
 		Type: "function",
+		Function: ChatCompletionToolFunction{
+			Name:        name,
+			Description: &description,
+			Parameters:  parameters,
+		},
 	}
-	tool.Function.Name = name
-	tool.Function.Description = &description
-	tool.Function.Parameters = parameters
 
 	return tool
 }

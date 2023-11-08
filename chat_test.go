@@ -290,9 +290,6 @@ func TestChatCompletionsVision(t *testing.T) {
 			if len(created.Choices) <= 0 {
 				t.Errorf("there was no returned choice")
 			}
-
-			// test
-			log.Printf("result = %+v", created)
 		}
 	} else {
 		t.Errorf("failed to open sample image: %s", err)
