@@ -112,7 +112,7 @@ func TestChatCompletionsFunction(t *testing.T) {
 				NewChatCompletionTool(
 					"get_current_weather",
 					"Get the current weather in a given location",
-					NewChatCompletionFunctionParameters().
+					NewToolFunctionParameters().
 						AddPropertyWithDescription("location", "string", "The city and state, e.g. San Francisco, CA").
 						AddPropertyWithEnums("unit", "string", []string{"celsius", "fahrenheit"}).
 						SetRequiredParameters([]string{"location", "unit"}),
@@ -201,7 +201,7 @@ func TestChatCompletionsFunctionStream(t *testing.T) {
 				NewChatCompletionTool(
 					"get_current_weather",
 					"Get the current weather in a given location",
-					NewChatCompletionFunctionParameters().
+					NewToolFunctionParameters().
 						AddPropertyWithDescription("location", "string", "The city and state, e.g. San Francisco, CA").
 						AddPropertyWithEnums("unit", "string", []string{"celsius", "fahrenheit"}).
 						SetRequiredParameters([]string{"location", "unit"}),

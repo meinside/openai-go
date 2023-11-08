@@ -136,8 +136,8 @@ func (m ChatMessage) ContentArray() ([]ChatMessageContent, error) {
 	return nil, fmt.Errorf("returned `content` is nil, cannot return as a content array")
 }
 
-// ChatCompletionFunctionParameters type
-type ChatCompletionFunctionParameters map[string]any
+// ToolFunctionParameters type
+type ToolFunctionParameters map[string]any
 
 // ChatCompletionTool struct for chat completion function
 //
@@ -149,13 +149,13 @@ type ChatCompletionTool struct {
 
 // ChatCompletionToolFunction struct
 type ChatCompletionToolFunction struct {
-	Name        string                           `json:"name"`
-	Description *string                          `json:"description,omitempty"`
-	Parameters  ChatCompletionFunctionParameters `json:"parameters"`
+	Name        string                 `json:"name"`
+	Description *string                `json:"description,omitempty"`
+	Parameters  ToolFunctionParameters `json:"parameters"`
 }
 
 // NewChatCompletionTool returns a ChatCompletionTool.
-func NewChatCompletionTool(name, description string, parameters ChatCompletionFunctionParameters) ChatCompletionTool {
+func NewChatCompletionTool(name, description string, parameters ToolFunctionParameters) ChatCompletionTool {
 	tool := ChatCompletionTool{
 		Type: "function",
 		Function: ChatCompletionToolFunction{
@@ -168,9 +168,9 @@ func NewChatCompletionTool(name, description string, parameters ChatCompletionFu
 	return tool
 }
 
-// NewChatCompletionFunctionParameters returns an empty ChatCompletionFunctionParameters.
-func NewChatCompletionFunctionParameters() ChatCompletionFunctionParameters {
-	return ChatCompletionFunctionParameters{
+// NewToolFunctionParameters returns an empty ToolFunctionParameters.
+func NewToolFunctionParameters() ToolFunctionParameters {
+	return ToolFunctionParameters{
 		"type":       "object",
 		"properties": map[string]any{},
 		"required":   []string{},
@@ -178,7 +178,7 @@ func NewChatCompletionFunctionParameters() ChatCompletionFunctionParameters {
 }
 
 // AddPropertyWithDescription adds/overwrites a property in chat completion function parameters with a description.
-func (p ChatCompletionFunctionParameters) AddPropertyWithDescription(name, typ3, description string) ChatCompletionFunctionParameters {
+func (p ToolFunctionParameters) AddPropertyWithDescription(name, typ3, description string) ToolFunctionParameters {
 	if properties, exists := p["properties"]; exists {
 		ps := properties.(map[string]any)
 		ps[name] = map[string]string{
@@ -191,7 +191,7 @@ func (p ChatCompletionFunctionParameters) AddPropertyWithDescription(name, typ3,
 }
 
 // AddPropertyWithEnums adds/overwrites a property in chat completion function parameters with enums.
-func (p ChatCompletionFunctionParameters) AddPropertyWithEnums(name, typ3 string, enums []string) ChatCompletionFunctionParameters {
+func (p ToolFunctionParameters) AddPropertyWithEnums(name, typ3 string, enums []string) ToolFunctionParameters {
 	if properties, exists := p["properties"]; exists {
 		ps := properties.(map[string]any)
 		ps[name] = map[string]any{
@@ -204,7 +204,7 @@ func (p ChatCompletionFunctionParameters) AddPropertyWithEnums(name, typ3 string
 }
 
 // SetRequiredParameters sets/overwrites required parameter names for chat completion function parameters.
-func (p ChatCompletionFunctionParameters) SetRequiredParameters(names []string) ChatCompletionFunctionParameters {
+func (p ToolFunctionParameters) SetRequiredParameters(names []string) ToolFunctionParameters {
 	p["required"] = names
 	return p
 }

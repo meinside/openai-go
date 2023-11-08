@@ -53,5 +53,6 @@ func NewClient(apiKey, organizationID string) *Client {
 // SetBetaHeader sets the beta HTTP header for beta features.
 func (c *Client) SetBetaHeader(beta string) *Client {
 	c.beta = &beta
+
 	return c
 }
