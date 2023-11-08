@@ -58,14 +58,16 @@ All API functions so far (2023.11.07.) are implemented, but not all of them were
 - [X] [Models](https://platform.openai.com/docs/api-reference/models): works on a non-paid account
 - [X] [Moderations](https://platform.openai.com/docs/api-reference/moderations): works on a non-paid account
 
-- [X] ~~Stream([server-sent events](https://developer.mozilla.org/en-US/docs/Web/API/Server-sent_events/Using_server-sent_events#event_stream_format)) options are not implemented yet.~~ thanks to @tectiv3 :-)
-
 ### Beta
 
-- [ ] [Assistants](https://platform.openai.com/docs/api-reference/assistants)
+- [X] [Assistants](https://platform.openai.com/docs/api-reference/assistants)
 - [ ] [Threads](https://platform.openai.com/docs/api-reference/threads)
 - [ ] [Messages](https://platform.openai.com/docs/api-reference/messages)
 - [ ] [Runs](https://platform.openai.com/docs/api-reference/runs)
+
+### Help Wanted
+
+- [X] ~~Stream([server-sent events](https://developer.mozilla.org/en-US/docs/Web/API/Server-sent_events/Using_server-sent_events#event_stream_format)) options are not implemented yet.~~ thanks to @tectiv3 :-)
 
 ## License
 
