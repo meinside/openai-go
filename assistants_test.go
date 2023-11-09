@@ -29,20 +29,15 @@ func TestAssistants(t *testing.T) {
 		SetName("My assistant for testing api").
 		SetInstructions("You are a helpful assistant.").
 		SetTools([]Tool{
-			{
-				Type: ToolTypeFunction,
-				Function: &ToolFunction{
-					Name:        "get_weather",
-					Description: "Determine weather in my location",
-					Parameters: NewToolFunctionParameters().
-						AddPropertyWithDescription("location", "string", "The city and state e.g. San Francisco, CA").
-						AddPropertyWithEnums("unit", "string", []string{"c", "f"}).
-						SetRequiredParameters([]string{"location", "unit"}),
-				},
-			},
-			{
-				Type: ToolTypeRetrieval,
-			},
+			NewFunctionTool(ToolFunction{
+				Name:        "get_weather",
+				Description: "Determine weather in my location",
+				Parameters: NewToolFunctionParameters().
+					AddPropertyWithDescription("location", "string", "The city and state e.g. San Francisco, CA").
+					AddPropertyWithEnums("unit", "string", []string{"c", "f"}).
+					SetRequiredParameters([]string{"location", "unit"}),
+			}),
+			NewRetrievalTool(),
 		})); err != nil {
 		t.Errorf("failed to create assistant: %s", err)
 	} else {

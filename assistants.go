@@ -44,6 +44,28 @@ type Tool struct {
 	Function *ToolFunction `json:"function,omitempty"`
 }
 
+// NewCodeInterpreterTool returns a tool with type: 'code_interpreter'.
+func NewCodeInterpreterTool() Tool {
+	return Tool{
+		Type: ToolTypeCodeInterpreter,
+	}
+}
+
+// NewRetrievalTool returns a tool with type: 'retrieval'.
+func NewRetrievalTool() Tool {
+	return Tool{
+		Type: ToolTypeRetrieval,
+	}
+}
+
+// NewFunctionTool returns a tool with type: 'function'.
+func NewFunctionTool(fn ToolFunction) Tool {
+	return Tool{
+		Type:     ToolTypeFunction,
+		Function: &fn,
+	}
+}
+
 // ToolFunction struct for Tool struct
 type ToolFunction struct {
 	Name        string                 `json:"name"`
