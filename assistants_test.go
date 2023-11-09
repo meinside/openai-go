@@ -44,84 +44,84 @@ func TestAssistants(t *testing.T) {
 		assistantID := created.ID
 
 		// === ListAssistants ===
-		if listed, err := client.ListAssistants(nil); err == nil {
+		if listed, err := client.ListAssistants(nil); err != nil {
+			t.Errorf("failed to list assistants: %s", err)
+		} else {
 			if len(listed.Data) <= 0 {
 				t.Errorf("no assistant was fetched while listing")
 			}
-		} else {
-			t.Errorf("failed to list assistants: %s", err)
 		}
 
 		// === RetrieveAssistant ===
-		if retrieved, err := client.RetrieveAssistant(assistantID); err == nil {
+		if retrieved, err := client.RetrieveAssistant(assistantID); err != nil {
+			t.Errorf("failed to fetch assistant: %s", err)
+		} else {
 			if retrieved.ID != assistantID {
 				t.Errorf("retrieved assistant's id: %s differs from the requested one: %s", retrieved.ID, assistantID)
 			}
 
 			// === ModifyAssistant ===
 			const modifiedDescription = "Determine weather in my location gracefully"
-			if modified, err := client.ModifyAssistant(assistantID, ModifyAssistantOptions{}.SetDescription(modifiedDescription)); err == nil {
+			if modified, err := client.ModifyAssistant(assistantID, ModifyAssistantOptions{}.SetDescription(modifiedDescription)); err != nil {
+				t.Errorf("failed to modify assistant: %s", err)
+			} else {
 				if *modified.Description != modifiedDescription {
 					t.Errorf("modified description differs from expectation: %s", *modified.Description)
 				}
-			} else {
-				t.Errorf("failed to modify assistant: %s", err)
 			}
 
-			if file, err := NewFileParamFromFilepath("./sample/test.rb"); err == nil {
+			if file, err := NewFileParamFromFilepath("./sample/test.rb"); err != nil {
+				t.Errorf("failed to open sample file: %s", err)
+			} else {
 				if uploaded, err := client.UploadFile(file, "assistants"); err != nil {
 					t.Errorf("failed to upload file: %s", err)
 				} else {
 					fileID := uploaded.ID
 
 					// === CreateAssistantFile ===
-					if created, err := client.CreateAssistantFile(assistantID, fileID); err == nil {
+					if created, err := client.CreateAssistantFile(assistantID, fileID); err != nil {
+						t.Errorf("failed to create assistant file: %s", err)
+					} else {
 						assistantFileID := created.ID
 
 						// === ListAssistantFiles ===
-						if listed, err := client.ListAssistantFiles(assistantID, nil); err == nil {
+						if listed, err := client.ListAssistantFiles(assistantID, nil); err != nil {
+							t.Errorf("failed to list assistant files: %s", err)
+						} else {
 							if len(listed.Data) <= 0 {
 								t.Errorf("no assistant file was fetched while listing")
 							}
-						} else {
-							t.Errorf("failed to list assistant files: %s", err)
 						}
 
 						// === RetrieveAssistantFile ===
-						if retrieved, err := client.RetrieveAssistantFile(assistantID, assistantFileID); err == nil {
+						if retrieved, err := client.RetrieveAssistantFile(assistantID, assistantFileID); err != nil {
+							t.Errorf("failed to retrieve assistant file: %s", err)
+						} else {
 							if retrieved.ID != assistantFileID {
 								t.Errorf("retrieved assistant file's id: %s differs from the requested one: %s", retrieved.ID, assistantFileID)
 							}
 
 							// === DeleteAssistantFile ===
-							if deleted, err := client.DeleteAssistantFile(assistantID, assistantFileID); err == nil {
+							if deleted, err := client.DeleteAssistantFile(assistantID, assistantFileID); err != nil {
+								t.Errorf("failed to delete assistant file: %s", err)
+							} else {
 								if !deleted.Deleted {
 									t.Errorf("deleted status of deleted assistant file is not true")
 								}
-							} else {
-								t.Errorf("failed to delete assistant file: %s", err)
 							}
-						} else {
-							t.Errorf("failed to retrieve assistant file: %s", err)
 						}
-					} else {
-						t.Errorf("failed to create assistant file: %s", err)
 					}
 				}
-			} else {
-				t.Errorf("failed to open sample file: %s", err)
 			}
 
 			// === DeleteAssistant ===
-			if deleted, err := client.DeleteAssistant(assistantID); err == nil {
+			if deleted, err := client.DeleteAssistant(assistantID); err != nil {
+				t.Errorf("failed to delete assistant: %s", err)
+			} else {
 				if !deleted.Deleted {
 					t.Errorf("deleted status of deleted assistant is not true")
 				}
-			} else {
-				t.Errorf("failed to delete assistant: %s", err)
 			}
-		} else {
-			t.Errorf("failed to fetch assistant: %s", err)
 		}
 	}
 }

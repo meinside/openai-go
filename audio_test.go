@@ -32,7 +32,9 @@ func TestAudio(t *testing.T) {
 	}
 
 	// === CreateTranscription ===
-	if audio, err := NewFileParamFromFilepath("./sample/test.mp3"); err == nil {
+	if audio, err := NewFileParamFromFilepath("./sample/test.mp3"); err != nil {
+		t.Errorf("failed to open sample audio: %s", err)
+	} else {
 		if translated, err := client.CreateTranscription(audio, audioModel, nil); err != nil {
 			t.Errorf("failed to create transcription: %s", err)
 		} else {
@@ -44,12 +46,12 @@ func TestAudio(t *testing.T) {
 				t.Errorf("there was no returned data")
 			}
 		}
-	} else {
-		t.Errorf("failed to open sample audio: %s", err)
 	}
 
 	// === CreateTranslation ===
-	if audio, err := NewFileParamFromFilepath("./sample/test.mp3"); err == nil {
+	if audio, err := NewFileParamFromFilepath("./sample/test.mp3"); err != nil {
+		t.Errorf("failed to open sample audio: %s", err)
+	} else {
 		if translated, err := client.CreateTranslation(audio, audioModel, nil); err != nil {
 			t.Errorf("failed to create translation: %s", err)
 		} else {
@@ -61,7 +63,5 @@ func TestAudio(t *testing.T) {
 				t.Errorf("there was no returned data")
 			}
 		}
-	} else {
-		t.Errorf("failed to open sample audio: %s", err)
 	}
 }

@@ -6,8 +6,10 @@ import (
 	"testing"
 )
 
-const chatCompletionModel = "gpt-3.5-turbo"
-const chatCompletionVisionModel = "gpt-4-vision-preview"
+const (
+	chatCompletionModel       = "gpt-3.5-turbo"
+	chatCompletionVisionModel = "gpt-4-vision-preview"
+)
 
 // === CreateChatCompletion ===
 func TestChatCompletions(t *testing.T) {
@@ -60,9 +62,13 @@ func TestChatCompletionsStream(t *testing.T) {
 				if done {
 					close(ch)
 				}
-			})); err == nil {
+			})); err != nil {
+		t.Errorf("failed to create chat completion with stream: %s", err)
+	} else {
 		for comp := range ch {
-			if comp.err == nil {
+			if comp.err != nil {
+				t.Errorf("there was an error in response stream: %s", comp.err)
+			} else {
 				if client.Verbose {
 					if !comp.done {
 						if content, err := comp.response.Choices[0].Delta.ContentString(); err == nil {
@@ -76,12 +82,8 @@ func TestChatCompletionsStream(t *testing.T) {
 						}
 					}
 				}
-			} else {
-				t.Errorf("there was an error in response stream: %s", comp.err)
 			}
 		}
-	} else {
-		t.Errorf("failed to create chat completion with stream: %s", err)
 	}
 }
 
@@ -234,7 +236,9 @@ func TestChatCompletionsFunctionStream(t *testing.T) {
 		t.Errorf("failed to create chat completion with stream: %s", err)
 	} else {
 		for comp := range ch {
-			if comp.err == nil {
+			if comp.err != nil {
+				t.Errorf("there was an error in response stream: %s", comp.err)
+			} else {
 				if client.Verbose {
 					if !comp.done {
 						if len(comp.response.Choices[0].Delta.ToolCalls) > 0 {
@@ -253,8 +257,6 @@ func TestChatCompletionsFunctionStream(t *testing.T) {
 						}
 					}
 				}
-			} else {
-				t.Errorf("there was an error in response stream: %s", comp.err)
 			}
 		}
 	}
@@ -275,7 +277,9 @@ func TestChatCompletionsVision(t *testing.T) {
 		t.Errorf("environment variables `OPENAI_API_KEY` and `OPENAI_ORGANIZATION` are needed")
 	}
 
-	if image, err := NewFileParamFromFilepath("./sample/pepe.png"); err == nil {
+	if image, err := NewFileParamFromFilepath("./sample/pepe.png"); err != nil {
+		t.Errorf("failed to open sample image: %s", err)
+	} else {
 		if created, err := client.CreateChatCompletion(chatCompletionVisionModel,
 			[]ChatMessage{
 				NewChatUserMessage[[]ChatMessageContent]([]ChatMessageContent{
@@ -291,7 +295,5 @@ func TestChatCompletionsVision(t *testing.T) {
 				t.Errorf("there was no returned choice")
 			}
 		}
-	} else {
-		t.Errorf("failed to open sample image: %s", err)
 	}
 }

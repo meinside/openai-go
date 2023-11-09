@@ -17,7 +17,9 @@ func TestFineTuning(t *testing.T) {
 		t.Errorf("environment variables `OPENAI_API_KEY` and `OPENAI_ORGANIZATION` are needed")
 	}
 
-	if file, err := NewFileParamFromFilepath("./sample/training.jsonl"); err == nil {
+	if file, err := NewFileParamFromFilepath("./sample/training.jsonl"); err != nil {
+		t.Errorf("failed to open sample jsonl file: %s", err)
+	} else {
 		if uploaded, err := client.UploadFile(file, "fine-tune"); err != nil {
 			t.Errorf("failed to upload file: %s", err)
 		} else {

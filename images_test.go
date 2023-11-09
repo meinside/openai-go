@@ -31,7 +31,9 @@ func TestImages(t *testing.T) {
 	}
 
 	// === CreateImageEdit ===
-	if image, err := NewFileParamFromFilepath("./sample/pepe.png"); err == nil {
+	if image, err := NewFileParamFromFilepath("./sample/pepe.png"); err != nil {
+		t.Errorf("failed to open sample image: %s", err)
+	} else {
 		if edited, err := client.CreateImageEdit(image, "A cute baby sea otter wearing a beret",
 			ImageEditOptions{}.
 				SetModel("dall-e-2").
@@ -43,12 +45,12 @@ func TestImages(t *testing.T) {
 				t.Errorf("there was no returned item")
 			}
 		}
-	} else {
-		t.Errorf("failed to open sample image: %s", err)
 	}
 
 	// === CreateImageVariation ===
-	if image, err := NewFileParamFromFilepath("./sample/pepe.png"); err == nil {
+	if image, err := NewFileParamFromFilepath("./sample/pepe.png"); err != nil {
+		t.Errorf("failed to open sample image: %s", err)
+	} else {
 		if variation, err := client.CreateImageVariation(image,
 			ImageVariationOptions{}.
 				SetModel("dall-e-2").
@@ -60,7 +62,5 @@ func TestImages(t *testing.T) {
 				t.Errorf("there was no returned item")
 			}
 		}
-	} else {
-		t.Errorf("failed to open sample image: %s", err)
 	}
 }
