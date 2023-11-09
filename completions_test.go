@@ -5,7 +5,9 @@ import (
 	"testing"
 )
 
-const completionModel = "text-davinci-003"
+const (
+	completionModel = "text-davinci-003"
+)
 
 func TestCompletions(t *testing.T) {
 	_apiKey := os.Getenv("OPENAI_API_KEY")

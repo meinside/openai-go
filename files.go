@@ -64,7 +64,7 @@ func (c *Client) ListFiles() (response Files, err error) {
 
 // UploadFile uploads given file.
 //
-// https://platform.openai.com/docs/api-reference/files/upload
+// https://platform.openai.com/docs/api-reference/files/create
 func (c *Client) UploadFile(file FileParam, purpose string) (response UploadedFile, err error) {
 	var bytes []byte
 	if bytes, err = c.post("v1/files", map[string]any{
