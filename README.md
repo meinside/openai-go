@@ -61,7 +61,7 @@ All API functions so far (2023.11.07.) are implemented, but not all of them were
 ### Beta
 
 - [X] [Assistants](https://platform.openai.com/docs/api-reference/assistants)
-- [ ] [Threads](https://platform.openai.com/docs/api-reference/threads)
+- [X] [Threads](https://platform.openai.com/docs/api-reference/threads)
 - [ ] [Messages](https://platform.openai.com/docs/api-reference/messages)
 - [ ] [Runs](https://platform.openai.com/docs/api-reference/runs)
 
