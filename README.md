@@ -40,7 +40,7 @@ and then
 $ go test
 ```
 
-**CAUTION**: It is advised to set usage limits before running tests; running all tests at once costs about ~$0.2.
+**CAUTION**: It is advised to [set usage limits](https://platform.openai.com/account/limits) before running tests; running all tests at once costs about ~$0.2.
 
 ## Todos/WIP
 
@@ -65,9 +65,18 @@ All API functions so far (2023.11.07.) are implemented, but not all of them were
 - [X] [Messages](https://platform.openai.com/docs/api-reference/messages)
 - [X] [Runs](https://platform.openai.com/docs/api-reference/runs)
 
+#### Note
+
+Beta API functions require beta header like this:
+
+```go
+client.SetBetaHeader(`assistants=v1`)
+```
+
 ### Help Wanted
 
 - [X] ~~Stream([server-sent events](https://developer.mozilla.org/en-US/docs/Web/API/Server-sent_events/Using_server-sent_events#event_stream_format)) options are not implemented yet.~~ thanks to @tectiv3 :-)
+- [ ] Add some sample applications.
 
 ## License
 
