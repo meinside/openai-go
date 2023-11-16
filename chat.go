@@ -190,6 +190,22 @@ func (p ToolFunctionParameters) AddPropertyWithDescription(name, typ3, descripti
 	return p
 }
 
+// AddArrayPropertyWithDescription adds/overwrites an array property in chat completion function parameters with a description.
+func (p ToolFunctionParameters) AddArrayPropertyWithDescription(name, elemType, description string) ToolFunctionParameters {
+	if properties, exists := p["properties"]; exists {
+		ps := properties.(map[string]any)
+		ps[name] = map[string]any{
+			"type":        "array",
+			"description": description,
+			"items": map[string]any{
+				"type": elemType,
+			},
+		}
+		p["properties"] = ps
+	}
+	return p
+}
+
 // AddPropertyWithEnums adds/overwrites a property in chat completion function parameters with enums.
 func (p ToolFunctionParameters) AddPropertyWithEnums(name, typ3 string, enums []string) ToolFunctionParameters {
 	if properties, exists := p["properties"]; exists {
