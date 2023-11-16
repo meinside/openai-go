@@ -92,6 +92,16 @@ func stream(res *http.Response, cb callback) {
 			continue
 		case bytes.HasPrefix(b, StreamData):
 			if bytes.HasSuffix(b, StreamDone) {
+				if len(entry.Choices) <= 0 {
+					entry.Choices = []ChatCompletionChoice{
+						{
+							Message: ChatMessage{
+								ToolCalls: []ToolCall{fn},
+							},
+						},
+					}
+				}
+
 				cb(entry, true, nil)
 				return
 			}

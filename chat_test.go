@@ -115,12 +115,12 @@ func TestChatCompletionsFunction(t *testing.T) {
 					"get_current_weather",
 					"Get the current weather in a given location",
 					NewToolFunctionParameters().
-						AddPropertyWithDescription("location", "string", "The city and state, e.g. San Francisco, CA").
+						AddArrayPropertyWithDescription("locations", "string", "The city and state, e.g. San Francisco, CA").
 						AddPropertyWithEnums("unit", "string", []string{"celsius", "fahrenheit"}).
-						SetRequiredParameters([]string{"location", "unit"}),
+						SetRequiredParameters([]string{"locations", "unit"}),
 				),
 			}).
-			SetToolChoice(ChatCompletionToolChoiceAuto)); err != nil {
+			SetToolChoiceWithName("get_current_weather")); err != nil {
 		t.Errorf("failed to create chat completion: %s", err)
 	} else {
 		if len(created.Choices) <= 0 {
@@ -140,14 +140,14 @@ func TestChatCompletionsFunction(t *testing.T) {
 
 				// parse returned arguments into a struct
 				type parsed struct {
-					Location string `json:"location"`
-					Unit     string `json:"unit"`
+					Locations []string `json:"locations"`
+					Unit      string   `json:"unit"`
 				}
 				var arguments parsed
 				if err := toolCall.ArgumentsInto(&arguments); err != nil {
 					t.Errorf("failed to parse arguments into struct: %s", err)
 				} else {
-					t.Logf("will call %s(\"%s\", \"%s\")", function.Name, arguments.Location, arguments.Unit)
+					t.Logf("will call %s(%+v, \"%s\")", function.Name, arguments.Locations, arguments.Unit)
 
 					// NOTE: get your local function's result with the generated arguments
 					functionResponse := "36.5" //functionResponse := get_current_weather('Seoul', 'celsius')
@@ -204,12 +204,12 @@ func TestChatCompletionsFunctionStream(t *testing.T) {
 					"get_current_weather",
 					"Get the current weather in a given location",
 					NewToolFunctionParameters().
-						AddPropertyWithDescription("location", "string", "The city and state, e.g. San Francisco, CA").
+						AddArrayPropertyWithDescription("locations", "string", "The city and state, e.g. San Francisco, CA").
 						AddPropertyWithEnums("unit", "string", []string{"celsius", "fahrenheit"}).
-						SetRequiredParameters([]string{"location", "unit"}),
+						SetRequiredParameters([]string{"locations", "unit"}),
 				),
 			}).
-			SetToolChoice(ChatCompletionToolChoiceAuto).
+			SetToolChoiceWithName("get_current_weather").
 			SetStream(func(response ChatCompletion, done bool, err error) {
 				ch <- completion{response: response, done: done, err: err}
 				if done {
@@ -218,14 +218,14 @@ func TestChatCompletionsFunctionStream(t *testing.T) {
 
 					// parse returned arguments into a struct
 					type parsed struct {
-						Location string `json:"location"`
-						Unit     string `json:"unit"`
+						Locations []string `json:"locations"`
+						Unit      string   `json:"unit"`
 					}
 					var arguments parsed
 					if err := toolCall.ArgumentsInto(&arguments); err != nil {
 						t.Errorf("failed to parse arguments into struct: %s", err)
 					} else {
-						t.Logf("will call %s(\"%s\", \"%s\")", function.Name, arguments.Location, arguments.Unit)
+						t.Logf("will call %s(%+v, \"%s\")", function.Name, arguments.Locations, arguments.Unit)
 
 						// NOTE: get your local function's result with the generated arguments
 					}
