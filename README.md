@@ -15,7 +15,7 @@ const orgID = "org-0123456789ABCDefghijklmnopQRSTUVWxyz"
 func main() {
     client := NewClient(apiKey, orgID)
 
-    if models, err := client.LitModels(); err != nil {
+    if models, err := client.ListModels(); err != nil {
         log.Printf("available models = %+v", models.Data)
     }
 }

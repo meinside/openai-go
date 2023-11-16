@@ -18,7 +18,7 @@ func TestModels(t *testing.T) {
 	}
 
 	// === ListModels ===
-	if models, err := client.LitModels(); err != nil {
+	if models, err := client.ListModels(); err != nil {
 		t.Errorf("failed to list models: %s", err)
 	} else {
 		if len(models.Data) > 0 {

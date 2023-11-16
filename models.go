@@ -53,7 +53,7 @@ type ModelDeletionStatus struct {
 // ListModels lists currently available models.
 //
 // https://platform.openai.com/docs/api-reference/models/list
-func (c *Client) LitModels() (response ModelsList, err error) {
+func (c *Client) ListModels() (response ModelsList, err error) {
 	var bytes []byte
 	if bytes, err = c.get("v1/models", nil); err == nil {
 		if err = json.Unmarshal(bytes, &response); err == nil {
