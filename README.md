@@ -78,7 +78,3 @@ client.SetBetaHeader(`assistants=v1`)
 - [X] ~~Stream([server-sent events](https://developer.mozilla.org/en-US/docs/Web/API/Server-sent_events/Using_server-sent_events#event_stream_format)) options are not implemented yet.~~ thanks to @tectiv3 :-)
 - [ ] Add some sample applications.
 
-## License
-
-MIT
-
