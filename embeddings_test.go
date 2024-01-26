@@ -5,7 +5,7 @@ import (
 	"testing"
 )
 
-const embeddingModel = "text-embedding-ada-002"
+const embeddingModel = "text-embedding-3-small"
 
 func TestEmbeddings(t *testing.T) {
 	_apiKey := os.Getenv("OPENAI_API_KEY")
