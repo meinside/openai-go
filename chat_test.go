@@ -116,7 +116,7 @@ func TestChatCompletionsFunction(t *testing.T) {
 					"Get the current weather in a given location",
 					NewToolFunctionParameters().
 						AddArrayPropertyWithDescription("locations", "string", "The city and state, e.g. San Francisco, CA").
-						AddPropertyWithEnums("unit", "string", []string{"celsius", "fahrenheit"}).
+						AddPropertyWithEnums("unit", "string", "string", []string{"celsius", "fahrenheit"}).
 						SetRequiredParameters([]string{"locations", "unit"}),
 				),
 			}).
