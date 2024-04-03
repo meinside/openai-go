@@ -34,7 +34,7 @@ func TestAssistants(t *testing.T) {
 				Description: "Determine weather in my location",
 				Parameters: NewToolFunctionParameters().
 					AddPropertyWithDescription("location", "string", "The city and state e.g. San Francisco, CA").
-					AddPropertyWithEnums("unit", "string", []string{"c", "f"}).
+					AddPropertyWithEnums("unit", "string", "string", []string{"c", "f"}).
 					SetRequiredParameters([]string{"location", "unit"}),
 			}),
 			NewRetrievalTool(),
