@@ -116,7 +116,7 @@ func TestChatCompletionsFunction(t *testing.T) {
 					"Get the current weather in a given location",
 					NewToolFunctionParameters().
 						AddArrayPropertyWithDescription("locations", "string", "The city and state, e.g. San Francisco, CA").
-						AddPropertyWithEnums("unit", "string", "string", []string{"celsius", "fahrenheit"}).
+						AddPropertyWithEnums("unit", "string", "The unit of temperature", []string{"celsius", "fahrenheit"}).
 						SetRequiredParameters([]string{"locations", "unit"}),
 				),
 			}).
@@ -205,7 +205,7 @@ func TestChatCompletionsFunctionStream(t *testing.T) {
 					"Get the current weather in a given location",
 					NewToolFunctionParameters().
 						AddArrayPropertyWithDescription("locations", "string", "The city and state, e.g. San Francisco, CA").
-						AddPropertyWithEnums("unit", "string", []string{"celsius", "fahrenheit"}).
+						AddPropertyWithEnums("unit", "string", "The unit of temperature", []string{"celsius", "fahrenheit"}).
 						SetRequiredParameters([]string{"locations", "unit"}),
 				),
 			}).
@@ -282,7 +282,7 @@ func TestChatCompletionsVision(t *testing.T) {
 	} else {
 		if created, err := client.CreateChatCompletion(chatCompletionVisionModel,
 			[]ChatMessage{
-				NewChatUserMessage[[]ChatMessageContent]([]ChatMessageContent{
+				NewChatUserMessage([]ChatMessageContent{
 					NewChatMessageContentWithText("What’s in this image?"),
 					//NewChatMessageContentWithImageURL("https://user-images.githubusercontent.com/185988/60949207-a9daf400-a32f-11e9-8f11-d68d31cb0c31.png"),
 					NewChatMessageContentWithFileParam(image),
