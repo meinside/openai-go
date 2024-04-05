@@ -24,6 +24,7 @@ type Client struct {
 	httpClient *http.Client
 
 	beta *string
+	baseURL *string
 
 	Verbose bool
 }
@@ -53,6 +54,16 @@ func NewClient(apiKey, organizationID string) *Client {
 // SetBetaHeader sets the beta HTTP header for beta features.
 func (c *Client) SetBetaHeader(beta string) *Client {
 	c.beta = &beta
+
+	return c
+}
+
+func (c *Client) SetBaseURL(baseURL string) *Client {
+	if len(baseURL) == 0 {
+		c.baseURL = nil
+	} else {
+		c.baseURL = &baseURL
+	}
 
 	return c
 }
