@@ -79,11 +79,11 @@ func (e *Error) err() error {
 func stream(res *http.Response, cb callback) {
 	defer res.Body.Close()
 
-	fn := ToolCall{
-		Type: "function",
-	}
+	fn := ToolCall{Type: "function"}
 
 	scanner := bufio.NewScanner(res.Body)
+	toolIndex := 0
+	toolCalls := []ToolCall{}
 	for scanner.Scan() {
 		var entry ChatCompletion
 		b := scanner.Bytes()
@@ -94,11 +94,7 @@ func stream(res *http.Response, cb callback) {
 			if bytes.HasSuffix(b, StreamDone) {
 				if len(entry.Choices) <= 0 {
 					entry.Choices = []ChatCompletionChoice{
-						{
-							Message: ChatMessage{
-								ToolCalls: []ToolCall{fn},
-							},
-						},
+						{Message: ChatMessage{ToolCalls: []ToolCall{}}},
 					}
 				}
 
@@ -112,6 +108,12 @@ func stream(res *http.Response, cb callback) {
 
 			if len(entry.Choices[0].Delta.ToolCalls) > 0 {
 				toolCall := entry.Choices[0].Delta.ToolCalls[0]
+				// if there are multiple tools in the response, detect a change in index
+				if toolCall.Index != toolIndex {
+					toolCalls = append(toolCalls, fn)
+					toolIndex++
+					fn = ToolCall{Type: "function", Index: toolIndex}
+				}
 
 				if toolCall.ID != "" {
 					fn.ID = toolCall.ID
@@ -125,7 +127,9 @@ func stream(res *http.Response, cb callback) {
 			}
 
 			if entry.Choices[0].FinishReason == "tool_calls" {
-				entry.Choices[0].Message.ToolCalls = []ToolCall{fn}
+				// append last function call
+				toolCalls = append(toolCalls, fn)
+				entry.Choices[0].Message.ToolCalls = toolCalls
 
 				cb(entry, false, nil)
 				cb(entry, true, nil)

@@ -21,6 +21,7 @@ const (
 
 // ToolCall struct
 type ToolCall struct {
+	Index	 int              `json:"index"`
 	ID       string           `json:"id"`
 	Type     string           `json:"type"` // == 'function'
 	Function ToolCallFunction `json:"function"`
