@@ -109,10 +109,10 @@ func stream(res *http.Response, cb callback) {
 			if len(entry.Choices[0].Delta.ToolCalls) > 0 {
 				toolCall := entry.Choices[0].Delta.ToolCalls[0]
 				// if there are multiple tools in the response, detect a change in index
-				if toolCall.Index != toolIndex {
+				if *toolCall.Index != toolIndex {
 					toolCalls = append(toolCalls, fn)
 					toolIndex++
-					fn = ToolCall{Type: "function", Index: toolIndex}
+					fn = ToolCall{Type: "function", Index: &toolIndex}
 				}
 
 				if toolCall.ID != "" {
