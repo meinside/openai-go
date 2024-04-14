@@ -21,6 +21,8 @@ const (
 
 // ToolCall struct
 type ToolCall struct {
+	// Index is not nil only in chat completion chunk object
+	Index    *int         	  `json:"index,omitempty"`
 	ID       string           `json:"id"`
 	Type     string           `json:"type"` // == 'function'
 	Function ToolCallFunction `json:"function"`
