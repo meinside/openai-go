@@ -6,7 +6,7 @@ import (
 )
 
 const (
-	completionModel = "text-davinci-003"
+	completionModel = "gpt-3.5-turbo-instruct"
 )
 
 func TestCompletions(t *testing.T) {

@@ -8,7 +8,7 @@ import (
 
 const (
 	chatCompletionModel       = "gpt-3.5-turbo"
-	chatCompletionVisionModel = "gpt-4-vision-preview"
+	chatCompletionVisionModel = "gpt-4-turbo"
 )
 
 // === CreateChatCompletion ===
@@ -213,21 +213,25 @@ func TestChatCompletionsFunctionStream(t *testing.T) {
 			SetStream(func(response ChatCompletion, done bool, err error) {
 				ch <- completion{response: response, done: done, err: err}
 				if done {
-					toolCall := response.Choices[0].Message.ToolCalls[0]
-					function := toolCall.Function
+					if len(response.Choices[0].Message.ToolCalls) > 0 {
+						toolCall := response.Choices[0].Message.ToolCalls[0]
+						function := toolCall.Function
 
-					// parse returned arguments into a struct
-					type parsed struct {
-						Locations []string `json:"locations"`
-						Unit      string   `json:"unit"`
-					}
-					var arguments parsed
-					if err := toolCall.ArgumentsInto(&arguments); err != nil {
-						t.Errorf("failed to parse arguments into struct: %s", err)
+						// parse returned arguments into a struct
+						type parsed struct {
+							Locations []string `json:"locations"`
+							Unit      string   `json:"unit"`
+						}
+						var arguments parsed
+						if err := toolCall.ArgumentsInto(&arguments); err != nil {
+							t.Errorf("failed to parse arguments into struct: %s", err)
+						} else {
+							t.Logf("will call %s(%+v, \"%s\")", function.Name, arguments.Locations, arguments.Unit)
+
+							// NOTE: get your local function's result with the generated arguments
+						}
 					} else {
-						t.Logf("will call %s(%+v, \"%s\")", function.Name, arguments.Locations, arguments.Unit)
-
-						// NOTE: get your local function's result with the generated arguments
+						t.Errorf("No tools in response")
 					}
 
 					close(ch)

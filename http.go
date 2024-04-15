@@ -125,8 +125,8 @@ func stream(res *http.Response, cb callback) {
 					fn.Function.Arguments = fn.Function.Arguments + toolCall.Function.Arguments
 				}
 			}
-
-			if entry.Choices[0].FinishReason == "tool_calls" {
+			if entry.Choices[0].FinishReason == "tool_calls" ||
+				(entry.Choices[0].FinishReason == "stop" && fn.ID != "") {
 				// append last function call
 				toolCalls = append(toolCalls, fn)
 				entry.Choices[0].Message.ToolCalls = toolCalls
@@ -169,8 +169,11 @@ func (c *Client) do(method, endpoint string, params map[string]any) (response []
 	if params == nil {
 		params = map[string]any{}
 	}
-
-	apiURL := fmt.Sprintf("%s/%s", baseURL, endpoint)
+	url := baseURL
+	if c.baseURL != nil {
+		url = *c.baseURL
+	}
+	apiURL := fmt.Sprintf("%s/%s", url, endpoint)
 
 	var req *http.Request
 	if req, err = http.NewRequest(method, apiURL, nil); err == nil {
@@ -236,7 +239,11 @@ func (c *Client) post(endpoint string, params map[string]any) (response []byte, 
 		params = map[string]any{}
 	}
 
-	apiURL := fmt.Sprintf("%s/%s", baseURL, endpoint)
+	url := baseURL
+	if c.baseURL != nil {
+		url = *c.baseURL
+	}
+	apiURL := fmt.Sprintf("%s/%s", url, endpoint)
 
 	var req *http.Request
 
@@ -331,7 +338,11 @@ func (c *Client) postCB(endpoint string, params map[string]any, cb callback) (re
 	if params == nil {
 		params = map[string]any{}
 	}
-	apiURL := fmt.Sprintf("%s/%s", baseURL, endpoint)
+	url := baseURL
+	if c.baseURL != nil {
+		url = *c.baseURL
+	}
+	apiURL := fmt.Sprintf("%s/%s", url, endpoint)
 
 	var req *http.Request
 	// application/json
