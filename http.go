@@ -125,8 +125,8 @@ func stream(res *http.Response, cb callback) {
 					fn.Function.Arguments = fn.Function.Arguments + toolCall.Function.Arguments
 				}
 			}
-
-			if entry.Choices[0].FinishReason == "tool_calls" {
+			if entry.Choices[0].FinishReason == "tool_calls" ||
+				(entry.Choices[0].FinishReason == "stop" && fn.ID != "") {
 				// append last function call
 				toolCalls = append(toolCalls, fn)
 				entry.Choices[0].Message.ToolCalls = toolCalls
