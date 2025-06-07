@@ -168,6 +168,123 @@ func streamWithCtx(ctx context.Context, res *http.Response, cb callback) {
 	}
 }
 
+// postCBResponses sends HTTP POST request with streaming callback for responses API
+func (c *Client) postCBResponses(endpoint string, params map[string]any, cb responseCallback) (response []byte, err error) {
+	return c.postCBResponsesWithContext(context.Background(), endpoint, params, cb)
+}
+
+// postCBResponsesWithContext sends HTTP POST request with streaming callback and context for responses API
+func (c *Client) postCBResponsesWithContext(ctx context.Context, endpoint string, params map[string]any, cb responseCallback) (response []byte, err error) {
+	if params == nil {
+		params = map[string]any{}
+	}
+	url := baseURL
+	if c.baseURL != nil {
+		url = *c.baseURL
+	}
+	apiURL := fmt.Sprintf("%s/%s", url, endpoint)
+
+	var req *http.Request
+	// application/json
+	var serialized []byte
+	if serialized, err = json.Marshal(params); err == nil {
+		if req, err = http.NewRequestWithContext(ctx, http.MethodPost, apiURL, bytes.NewBuffer(serialized)); err != nil {
+			return nil, fmt.Errorf("failed to create application/json request: %s", err)
+		}
+
+		// set content-type header
+		req.Header.Set(kContentType, defaultContentType)
+	}
+
+	// set authentication headers
+	req.Header.Set(kAuthorization, fmt.Sprintf("Bearer %s", c.APIKey))
+	req.Header.Set(kOrganization, c.OrganizationID)
+
+	if c.Verbose {
+		if dumped, err := httputil.DumpRequest(req, true); err == nil {
+			log.Printf("dump request:\n\n%s", string(dumped))
+		}
+	}
+
+	// send request and return response bytes
+	var resp *http.Response
+	resp, err = c.httpClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	if !isSuccessStatus(resp.StatusCode) {
+		defer resp.Body.Close()
+		errbody := struct {
+			Error Error `json:"error"`
+		}{}
+		if err := json.NewDecoder(resp.Body).Decode(&errbody); err != nil {
+			return nil, fmt.Errorf("failed to decode error body: %v", err)
+		}
+		return nil, errbody.Error.err()
+	}
+
+	go streamResponsesWithCtx(ctx, resp, cb)
+
+	return nil, nil
+}
+
+// streamResponsesWithCtx handles streaming responses for the responses API
+func streamResponsesWithCtx(ctx context.Context, res *http.Response, cb responseCallback) {
+	defer res.Body.Close()
+
+	scanner := bufio.NewScanner(res.Body)
+	for scanner.Scan() {
+		// Check for context cancellation
+		select {
+		case <-ctx.Done():
+			cb(ResponseStreamEvent{}, true, ctx.Err())
+			return
+		default:
+		}
+
+		b := scanner.Bytes()
+		if len(b) == 0 {
+			continue
+		}
+
+		// Skip event: lines
+		if bytes.HasPrefix(b, []byte("event:")) {
+			continue
+		}
+
+		// Process data: lines
+		if bytes.HasPrefix(b, []byte("data: ")) {
+			dataBytes := bytes.TrimPrefix(b, []byte("data: "))
+
+			// Check for [DONE] marker
+			if bytes.Equal(dataBytes, []byte("[DONE]")) {
+				cb(ResponseStreamEvent{}, true, nil)
+				return
+			}
+
+			// Parse JSON event
+			var event ResponseStreamEvent
+			if err := json.Unmarshal(dataBytes, &event); err != nil {
+				cb(ResponseStreamEvent{}, true, err)
+				return
+			}
+
+			// Check if this is a completion event
+			done := event.Type == "response.completed" || event.Type == "response.failed" || event.Type == "response.cancelled"
+			cb(event, done, nil)
+
+			if done {
+				return
+			}
+		}
+	}
+
+	// Check for scanner error
+	if err := scanner.Err(); err != nil {
+		cb(ResponseStreamEvent{}, true, err)
+	}
+}
+
 // FileParam struct for multipart requests
 type FileParam struct {
 	bs []byte

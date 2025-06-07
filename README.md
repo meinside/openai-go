@@ -57,6 +57,69 @@ All API functions so far (2023.11.07.) are implemented, but not all of them were
 - [X] [Images](https://platform.openai.com/docs/api-reference/images)
 - [X] [Models](https://platform.openai.com/docs/api-reference/models): works on a non-paid account
 - [X] [Moderations](https://platform.openai.com/docs/api-reference/moderations): works on a non-paid account
+- [X] [Responses](https://platform.openai.com/docs/api-reference/responses)
+
+### Responses API examples
+
+```go
+// Simple text input
+response, err := client.CreateResponse("gpt-4.1", "Hello, how can you help me?", nil)
+if err != nil {
+    log.Fatal(err)
+}
+log.Printf("Response: %s", response.Output[0].Content[0].Text)
+
+// With message array input
+messages := []openai.ResponseMessage{
+    openai.NewResponseMessage("user", "What is the weather like?"),
+    openai.NewResponseMessage("assistant", "I'd be happy to help with weather information. Could you please specify your location?"),
+    openai.NewResponseMessage("user", "New York City"),
+}
+
+response, err := client.CreateResponse("gpt-4.1", messages, nil)
+if err != nil {
+    log.Fatal(err)
+}
+
+// With options
+options := openai.ResponseOptions{}
+options.SetInstructions("You are a helpful assistant.")
+options.SetTemperature(0.7)
+options.SetMaxOutputTokens(100)
+
+response, err := client.CreateResponse("gpt-4.1", "Explain quantum computing", options)
+if err != nil {
+    log.Fatal(err)
+}
+```
+
+#### Streaming Responses
+
+```go
+err := client.CreateResponseStream("gpt-4.1", "Tell me a story", nil, func(event openai.ResponseStreamEvent, done bool, err error) {
+    if err != nil {
+        log.Printf("Stream error: %v", err)
+        return
+    }
+    
+    switch event.Type {
+    case "response.output_text.delta":
+        if event.Delta != nil {
+            fmt.Print(*event.Delta)
+        }
+    case "response.completed":
+        fmt.Println("\nStream completed")
+    }
+    
+    if done {
+        return
+    }
+})
+
+if err != nil {
+    log.Fatal(err)
+}
+```
 
 ### Beta
 
