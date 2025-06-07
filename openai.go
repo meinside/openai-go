@@ -23,7 +23,7 @@ type Client struct {
 
 	httpClient *http.Client
 
-	beta *string
+	beta    *string
 	baseURL *string
 
 	Verbose bool
