@@ -37,6 +37,7 @@ var (
 type CommonResponse struct {
 	Object *string `json:"object,omitempty"`
 	Error  *Error  `json:"error,omitempty"`
+	Type   *string `json:"type,omitempty"`
 }
 
 // Error struct for response error property
@@ -104,6 +105,12 @@ func stream(res *http.Response, cb callback) {
 			if err := json.Unmarshal(b[len(StreamData):], &entry); err != nil {
 				cb(entry, true, err)
 				return
+			}
+			if entry.Type != nil {
+				entryType := *entry.Type
+				if entryType == "ping" {
+					continue
+				}
 			}
 
 			if len(entry.Choices[0].Delta.ToolCalls) > 0 {
