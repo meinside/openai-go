@@ -718,12 +718,13 @@ func TestResponsesRealStreamWithTools(t *testing.T) {
 	}
 
 	// Create a simple tool
-	timeTool := NewResponseTool("get_current_time", "Get the current time.",
-		NewToolFunctionParameters().
-			AddPropertyWithDescription("timezone", "string", "Timezone (optional)"))
-	log.Printf("Using tool: %v", timeTool)
+	// timeTool := NewResponseTool("get_current_time", "Get the current time.",
+	// 	NewToolFunctionParameters().
+	// 		AddPropertyWithDescription("timezone", "string", "Timezone (optional)"))
+
 	options := ResponseOptions{}
-	options.SetTools([]any{timeTool})
+	// options.SetTools([]any{timeTool})
+	options.SetTools([]any{NewBuiltinTool("web_search_preview")})
 	options.SetToolChoiceAuto()
 
 	events := []ResponseStreamEvent{}
@@ -733,7 +734,7 @@ func TestResponsesRealStreamWithTools(t *testing.T) {
 	var completedFunctionCall *ResponseOutput
 
 	// Test streaming with tools
-	err := client.CreateResponseStream(responsesModel, "What time is it?", options, func(event ResponseStreamEvent, isDone bool, err error) {
+	err := client.CreateResponseStream(responsesModel, "Find out what date it is today?", options, func(event ResponseStreamEvent, isDone bool, err error) {
 		callbackCount++
 		if err != nil {
 			t.Errorf("Stream callback error: %v", err)
@@ -746,9 +747,14 @@ func TestResponsesRealStreamWithTools(t *testing.T) {
 
 		// Handle different event types
 		switch event.Type {
+		case "response.output_text.delta":
+			log.Printf("Output text delta: %s", *event.Delta)
 		case "response.output_item.added":
 			if event.Item != nil && event.Item.Type == "function_call" {
 				log.Printf("Function call started: %s", event.Item.Name)
+			} else if event.Item != nil && event.Item.Type == "web_search_call" {
+				log.Printf("Web search started: %v", event.Item)
+				functionCallEvents++
 			}
 		case "response.function_call_arguments.delta":
 			functionCallEvents++
@@ -778,6 +784,8 @@ func TestResponsesRealStreamWithTools(t *testing.T) {
 					log.Printf("Failed to parse arguments: %v", parseErr)
 				}
 				log.Printf("===============================\n")
+			} else if event.Item != nil && event.Item.Type == "message" {
+				log.Printf("Message output: %s", event.Item.Content[0].Text)
 			}
 		case "response.completed":
 			log.Printf("Response stream completed")
