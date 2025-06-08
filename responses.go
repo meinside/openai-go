@@ -92,6 +92,13 @@ type ResponseToolChoice struct {
 	Name string `json:"name,omitempty"`
 }
 
+type ResponseTool struct {
+	Type        string                 `json:"type"`
+	Name        string                 `json:"name,omitempty"`
+	Description string                 `json:"description,omitempty"`
+	Parameters  ToolFunctionParameters `json:"parameters,omitempty"`
+}
+
 // Tool choice constants
 const (
 	ResponseToolChoiceAuto     = "auto"
@@ -343,13 +350,14 @@ func NewResponseFunctionCallOutput(callID, output string) ResponseFunctionCallOu
 	}
 }
 
-// NewResponseTool creates a function tool for responses API (reuses existing Tool from assistants)
-func NewResponseTool(name, description string, parameters ToolFunctionParameters) Tool {
-	return NewFunctionTool(ToolFunction{
+// NewResponseTool creates a function tool for responses API
+func NewResponseTool(name, description string, parameters ToolFunctionParameters) ResponseTool {
+	return ResponseTool{
+		Type:        "function",
 		Name:        name,
 		Description: description,
 		Parameters:  parameters,
-	})
+	}
 }
 
 // ArgumentsParsed returns the parsed arguments from a function call ResponseOutput

@@ -721,7 +721,7 @@ func TestResponsesRealStreamWithTools(t *testing.T) {
 	timeTool := NewResponseTool("get_current_time", "Get the current time.",
 		NewToolFunctionParameters().
 			AddPropertyWithDescription("timezone", "string", "Timezone (optional)"))
-
+	log.Printf("Using tool: %v", timeTool)
 	options := ResponseOptions{}
 	options.SetTools([]any{timeTool})
 	options.SetToolChoiceAuto()
@@ -746,7 +746,7 @@ func TestResponsesRealStreamWithTools(t *testing.T) {
 		// Track function call related events
 		if strings.Contains(event.Type, "function_call") {
 			functionCallEvents++
-			log.Printf("Function call event: %s", event.Type)
+			log.Printf("Function call event: %s, name: %s", event.Type, event.Name)
 			if event.Delta != nil {
 				log.Printf("Function call delta: %s", *event.Delta)
 			}
