@@ -730,6 +730,7 @@ func TestResponsesRealStreamWithTools(t *testing.T) {
 	callbackCount := 0
 	done := make(chan bool)
 	functionCallEvents := 0
+	var completedFunctionCall *ResponseOutput
 
 	// Test streaming with tools
 	err := client.CreateResponseStream(responsesModel, "What time is it?", options, func(event ResponseStreamEvent, isDone bool, err error) {
@@ -743,17 +744,50 @@ func TestResponsesRealStreamWithTools(t *testing.T) {
 		events = append(events, event)
 		log.Printf("Stream event type: %s", event.Type)
 
-		// Track function call related events
-		if strings.Contains(event.Type, "function_call") {
-			functionCallEvents++
-			log.Printf("Function call event: %s, name: %s", event.Type, event.Name)
-			if event.Delta != nil {
-				log.Printf("Function call delta: %s", *event.Delta)
+		// Handle different event types
+		switch event.Type {
+		case "response.output_item.added":
+			if event.Item != nil && event.Item.Type == "function_call" {
+				log.Printf("Function call started: %s", event.Item.Name)
 			}
+		case "response.function_call_arguments.delta":
+			functionCallEvents++
+			if event.Delta != nil {
+				log.Printf("Function call arguments delta: %s", *event.Delta)
+			}
+		case "response.function_call_arguments.done":
+			functionCallEvents++
+			if event.Arguments != nil {
+				log.Printf("Function call arguments completed: %s", *event.Arguments)
+			}
+		case "response.output_item.done":
+			if event.Item != nil && event.Item.Type == "function_call" {
+				completedFunctionCall = event.Item
+				log.Printf("\n=== FUNCTION CALL COMPLETED ===")
+				log.Printf("Function: %s", event.Item.Name)
+				log.Printf("Call ID: %s", event.Item.CallID)
+				log.Printf("Raw Arguments: %s", event.Item.Arguments)
+
+				// Parse arguments using ArgumentsParsed
+				if args, parseErr := event.Item.ArgumentsParsed(); parseErr == nil {
+					log.Printf("Parsed Arguments: %+v", args)
+					for key, value := range args {
+						log.Printf("  %s: %v (type: %T)", key, value, value)
+					}
+				} else {
+					log.Printf("Failed to parse arguments: %v", parseErr)
+				}
+				log.Printf("===============================\n")
+			}
+		case "response.completed":
+			log.Printf("Response stream completed")
 		}
 
 		if isDone {
 			log.Printf("Stream completed with %d events, %d function call events", len(events), functionCallEvents)
+			if completedFunctionCall != nil {
+				log.Printf("Final function call summary: %s with args %s", completedFunctionCall.Name, completedFunctionCall.Arguments)
+			}
 			done <- true
 		}
 	})
