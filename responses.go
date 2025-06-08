@@ -5,6 +5,7 @@ package openai
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 )
 
 // Response represents a response from the OpenAI Responses API
@@ -43,9 +44,12 @@ type ResponseOutput struct {
 	Status  string          `json:"status"`
 	Role    string          `json:"role,omitempty"`
 	Content []OutputContent `json:"content,omitempty"`
-}
 
-// OutputContent represents content within a response output
+	// Function call fields (when Type == "function_call")
+	CallID    string `json:"call_id,omitempty"`
+	Name      string `json:"name,omitempty"`
+	Arguments string `json:"arguments,omitempty"`
+} // OutputContent represents content within a response output
 type OutputContent struct {
 	Type        string       `json:"type"`
 	Text        string       `json:"text,omitempty"`
@@ -80,6 +84,26 @@ type ResponseTokensDetails struct {
 type ResponseMessage struct {
 	Role    string `json:"role"`
 	Content string `json:"content"`
+}
+
+// ResponseToolChoice represents tool choice options
+type ResponseToolChoice struct {
+	Type string `json:"type,omitempty"`
+	Name string `json:"name,omitempty"`
+}
+
+// Tool choice constants
+const (
+	ResponseToolChoiceAuto     = "auto"
+	ResponseToolChoiceRequired = "required"
+	ResponseToolChoiceNone     = "none"
+)
+
+// ResponseFunctionCallOutput represents function call output for input
+type ResponseFunctionCallOutput struct {
+	Type   string `json:"type"`    // "function_call_output"
+	CallID string `json:"call_id"` // The call_id from function call
+	Output string `json:"output"`  // Function execution result
 }
 
 // ResponseOptions for creating responses
@@ -145,6 +169,33 @@ func (o ResponseOptions) SetToolChoice(toolChoice any) ResponseOptions {
 	return o
 }
 
+// SetToolChoiceAuto sets tool_choice to "auto"
+func (o ResponseOptions) SetToolChoiceAuto() ResponseOptions {
+	o["tool_choice"] = ResponseToolChoiceAuto
+	return o
+}
+
+// SetToolChoiceRequired sets tool_choice to "required"
+func (o ResponseOptions) SetToolChoiceRequired() ResponseOptions {
+	o["tool_choice"] = ResponseToolChoiceRequired
+	return o
+}
+
+// SetToolChoiceNone sets tool_choice to "none"
+func (o ResponseOptions) SetToolChoiceNone() ResponseOptions {
+	o["tool_choice"] = ResponseToolChoiceNone
+	return o
+}
+
+// SetToolChoiceFunction sets tool_choice to force a specific function
+func (o ResponseOptions) SetToolChoiceFunction(functionName string) ResponseOptions {
+	o["tool_choice"] = ResponseToolChoice{
+		Type: "function",
+		Name: functionName,
+	}
+	return o
+}
+
 // SetParallelToolCalls sets the parallel_tool_calls parameter
 func (o ResponseOptions) SetParallelToolCalls(parallel bool) ResponseOptions {
 	o["parallel_tool_calls"] = parallel
@@ -159,7 +210,8 @@ type ResponseStreamEvent struct {
 	Type string `json:"type"`
 
 	// For response events
-	Response *Response `json:"response,omitempty"`
+	Response   *Response `json:"response,omitempty"`
+	ResponseID *string   `json:"response_id,omitempty"`
 
 	// For output item events
 	OutputIndex *int            `json:"output_index,omitempty"`
@@ -174,7 +226,8 @@ type ResponseStreamEvent struct {
 	Delta *string `json:"delta,omitempty"`
 
 	// For done events
-	Text *string `json:"text,omitempty"`
+	Text      *string `json:"text,omitempty"`
+	Arguments *string `json:"arguments,omitempty"`
 }
 
 // CreateResponse creates a response using the OpenAI Responses API
@@ -279,4 +332,41 @@ func NewResponseMessage(role, content string) ResponseMessage {
 		Role:    role,
 		Content: content,
 	}
+}
+
+// NewResponseFunctionCallOutput creates a function call output for input
+func NewResponseFunctionCallOutput(callID, output string) ResponseFunctionCallOutput {
+	return ResponseFunctionCallOutput{
+		Type:   "function_call_output",
+		CallID: callID,
+		Output: output,
+	}
+}
+
+// NewResponseTool creates a function tool for responses API (reuses existing Tool from assistants)
+func NewResponseTool(name, description string, parameters ToolFunctionParameters) Tool {
+	return NewFunctionTool(ToolFunction{
+		Name:        name,
+		Description: description,
+		Parameters:  parameters,
+	})
+}
+
+// ArgumentsParsed returns the parsed arguments from a function call ResponseOutput
+func (r ResponseOutput) ArgumentsParsed() (result map[string]any, err error) {
+	if r.Type == "function_call" && r.Arguments != "" {
+		err = json.Unmarshal([]byte(r.Arguments), &result)
+	}
+	return result, err
+}
+
+// ArgumentsInto parses the function call arguments into a given interface
+func (r ResponseOutput) ArgumentsInto(out any) (err error) {
+	if r.Type != "function_call" {
+		return fmt.Errorf("not a function call output")
+	}
+	if r.Arguments == "" {
+		return fmt.Errorf("arguments are empty")
+	}
+	return json.Unmarshal([]byte(r.Arguments), &out)
 }
