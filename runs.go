@@ -451,8 +451,8 @@ type RunStepDetailsMessageCreation struct {
 
 // RunStepDetailsToolCall struct for RunStepDetails struct
 type RunStepDetailsToolCall struct {
-	ID   string   `json:"id"`
-	Type ToolType `json:"type"`
+	ID   string `json:"id"`
+	Type string `json:"type"`
 
 	CodeInterpreter *RunStepDetailsToolCallCodeInterpreter `json:"code_interpreter,omitempty"` // Type == ToolTypeCodeInterpreter
 	Retrieval       *RunStepDetailsToolCallRetrieval       `json:"retrieval,omitempty"`        // Type -== ToolTypeRetrieval

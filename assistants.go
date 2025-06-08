@@ -26,43 +26,40 @@ type Assistant struct {
 	Metadata     map[string]string `json:"metadata"`
 }
 
-// ToolType type for constants
-type ToolType string
-
-// ToolType constants
-const (
-	ToolTypeCodeInterpreter ToolType = "code_interpreter"
-	ToolTypeRetrieval       ToolType = "retrieval"
-	ToolTypeFunction        ToolType = "function"
-)
-
 // Tool struct for assistant object
 //
 // https://platform.openai.com/docs/api-reference/assistants/object#assistants/object-tools
 type Tool struct {
-	Type     ToolType      `json:"type"`
+	Type     string        `json:"type"`
 	Function *ToolFunction `json:"function,omitempty"`
 }
 
 // NewCodeInterpreterTool returns a tool with type: 'code_interpreter'.
 func NewCodeInterpreterTool() Tool {
 	return Tool{
-		Type: ToolTypeCodeInterpreter,
+		Type: "code_interpreter",
 	}
 }
 
 // NewRetrievalTool returns a tool with type: 'retrieval'.
 func NewRetrievalTool() Tool {
 	return Tool{
-		Type: ToolTypeRetrieval,
+		Type: "retrieval",
 	}
 }
 
 // NewFunctionTool returns a tool with type: 'function'.
 func NewFunctionTool(fn ToolFunction) Tool {
 	return Tool{
-		Type:     ToolTypeFunction,
+		Type:     "function",
 		Function: &fn,
+	}
+}
+
+// NewBuiltinTool returns a tool with a specified type.
+func NewBuiltinTool(fn string) Tool {
+	return Tool{
+		Type: fn,
 	}
 }
 

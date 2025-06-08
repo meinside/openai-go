@@ -593,19 +593,16 @@ func TestResponsesRealWithTools(t *testing.T) {
 		return
 	}
 
-	// Create a weather tool
-	weatherTool := NewResponseTool("get_weather", "Get current temperature for a given location.",
-		NewToolFunctionParameters().
-			AddPropertyWithDescription("location", "string", "City and country e.g. Bogotá, Colombia").
-			SetRequiredParameters([]string{"location"}))
+	// Create a search tool
+	searchTool := NewBuiltinTool("web_search_preview")
 
 	// Test with tools
 	options := ResponseOptions{}
-	options.SetInstructions("You are a helpful weather assistant.")
-	options.SetTools([]any{weatherTool})
+	options.SetInstructions("You are a helpful assistant.")
+	options.SetTools([]any{searchTool})
 	options.SetToolChoiceAuto()
 
-	response, err := client.CreateResponse(responsesModel, "What is the weather like in Paris today?", options)
+	response, err := client.CreateResponse(responsesModel, "What was a positive news story from today?", options)
 	if err != nil {
 		t.Errorf("CreateResponse with tools failed: %v", err)
 		return
@@ -620,18 +617,16 @@ func TestResponsesRealWithTools(t *testing.T) {
 	// Check if function call was made
 	functionCalled := false
 	for _, output := range response.Output {
-		if output.Type == "function_call" {
+		if output.Type == "web_search_call" {
 			functionCalled = true
-			log.Printf("Function call: %s with args: %s", output.Name, output.Arguments)
-
-			// Test argument parsing
-			args, err := output.ArgumentsParsed()
-			if err != nil {
-				t.Errorf("Failed to parse arguments: %v", err)
-			} else {
-				log.Printf("Parsed arguments: %+v", args)
+			log.Printf("Search call with status: %s", output.Status)
+		} else if output.Type == "message" {
+			if len(output.Content) > 0 && len(output.Content) > 0 {
+				log.Printf("Final response text: %s", output.Content[0].Text)
+				log.Printf("Annotations: %v", output.Content[0].Annotations)
 			}
-			break
+		} else {
+			t.Errorf("Unexpected output type: %s", output.Type)
 		}
 	}
 
