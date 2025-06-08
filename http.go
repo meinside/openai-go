@@ -5,6 +5,7 @@ package openai
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -33,10 +34,16 @@ var (
 	StreamDone = []byte("[DONE]")
 )
 
+// isSuccessStatus checks if HTTP status code indicates success
+func isSuccessStatus(code int) bool {
+	return code >= 200 && code < 300
+}
+
 // CommonResponse struct for responses with common properties
 type CommonResponse struct {
 	Object *string `json:"object,omitempty"`
 	Error  *Error  `json:"error,omitempty"`
+	Type   *string `json:"type,omitempty"`
 }
 
 // Error struct for response error property
@@ -76,7 +83,7 @@ func (e *Error) err() error {
 	}
 }
 
-func stream(res *http.Response, cb callback) {
+func streamWithCtx(ctx context.Context, res *http.Response, cb callback) {
 	defer res.Body.Close()
 
 	fn := ToolCall{Type: "function"}
@@ -85,6 +92,14 @@ func stream(res *http.Response, cb callback) {
 	toolIndex := 0
 	toolCalls := []ToolCall{}
 	for scanner.Scan() {
+		// Check for context cancellation
+		select {
+		case <-ctx.Done():
+			cb(ChatCompletion{}, true, ctx.Err())
+			return
+		default:
+		}
+
 		var entry ChatCompletion
 		b := scanner.Bytes()
 		switch {
@@ -105,11 +120,18 @@ func stream(res *http.Response, cb callback) {
 				cb(entry, true, err)
 				return
 			}
+			if entry.Type != nil {
+				entryType := *entry.Type
+				if entryType == "ping" {
+					continue
+				}
+			}
 
-			if len(entry.Choices[0].Delta.ToolCalls) > 0 {
+			// Safe access to entry.Choices and tool calls
+			if len(entry.Choices) > 0 && len(entry.Choices[0].Delta.ToolCalls) > 0 {
 				toolCall := entry.Choices[0].Delta.ToolCalls[0]
 				// if there are multiple tools in the response, detect a change in index
-				if *toolCall.Index != toolIndex {
+				if toolCall.Index != nil && *toolCall.Index != toolIndex {
 					toolCalls = append(toolCalls, fn)
 					toolIndex++
 					fn = ToolCall{Type: "function", Index: &toolIndex}
@@ -125,8 +147,9 @@ func stream(res *http.Response, cb callback) {
 					fn.Function.Arguments = fn.Function.Arguments + toolCall.Function.Arguments
 				}
 			}
-			if entry.Choices[0].FinishReason == "tool_calls" ||
-				(entry.Choices[0].FinishReason == "stop" && fn.ID != "") {
+			// Safe access to finish reason
+			if len(entry.Choices) > 0 && (entry.Choices[0].FinishReason == "tool_calls" ||
+				(entry.Choices[0].FinishReason == "stop" && fn.ID != "")) {
 				// append last function call
 				toolCalls = append(toolCalls, fn)
 				entry.Choices[0].Message.ToolCalls = toolCalls
@@ -138,6 +161,127 @@ func stream(res *http.Response, cb callback) {
 			}
 			cb(entry, false, nil)
 		}
+	}
+	// Check for scanner error
+	if err := scanner.Err(); err != nil {
+		cb(ChatCompletion{}, true, err)
+	}
+}
+
+// postCBResponses sends HTTP POST request with streaming callback for responses API
+func (c *Client) postCBResponses(endpoint string, params map[string]any, cb responseCallback) (response []byte, err error) {
+	return c.postCBResponsesWithContext(context.Background(), endpoint, params, cb)
+}
+
+// postCBResponsesWithContext sends HTTP POST request with streaming callback and context for responses API
+func (c *Client) postCBResponsesWithContext(ctx context.Context, endpoint string, params map[string]any, cb responseCallback) (response []byte, err error) {
+	if params == nil {
+		params = map[string]any{}
+	}
+	url := baseURL
+	if c.baseURL != nil {
+		url = *c.baseURL
+	}
+	apiURL := fmt.Sprintf("%s/%s", url, endpoint)
+
+	var req *http.Request
+	// application/json
+	var serialized []byte
+	if serialized, err = json.Marshal(params); err == nil {
+		if req, err = http.NewRequestWithContext(ctx, http.MethodPost, apiURL, bytes.NewBuffer(serialized)); err != nil {
+			return nil, fmt.Errorf("failed to create application/json request: %s", err)
+		}
+
+		// set content-type header
+		req.Header.Set(kContentType, defaultContentType)
+	}
+
+	// set authentication headers
+	req.Header.Set(kAuthorization, fmt.Sprintf("Bearer %s", c.APIKey))
+	req.Header.Set(kOrganization, c.OrganizationID)
+
+	if c.Verbose {
+		if dumped, err := httputil.DumpRequest(req, true); err == nil {
+			log.Printf("dump request:\n\n%s", string(dumped))
+		}
+	}
+
+	// send request and return response bytes
+	var resp *http.Response
+	resp, err = c.httpClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	if !isSuccessStatus(resp.StatusCode) {
+		defer resp.Body.Close()
+		errbody := struct {
+			Error Error `json:"error"`
+		}{}
+		if err := json.NewDecoder(resp.Body).Decode(&errbody); err != nil {
+			return nil, fmt.Errorf("failed to decode error body: %v", err)
+		}
+		return nil, errbody.Error.err()
+	}
+
+	go streamResponsesWithCtx(ctx, resp, cb)
+
+	return nil, nil
+}
+
+// streamResponsesWithCtx handles streaming responses for the responses API
+func streamResponsesWithCtx(ctx context.Context, res *http.Response, cb responseCallback) {
+	defer res.Body.Close()
+
+	scanner := bufio.NewScanner(res.Body)
+	for scanner.Scan() {
+		// Check for context cancellation
+		select {
+		case <-ctx.Done():
+			cb(ResponseStreamEvent{}, true, ctx.Err())
+			return
+		default:
+		}
+
+		b := scanner.Bytes()
+		if len(b) == 0 {
+			continue
+		}
+
+		// Skip event: lines
+		if bytes.HasPrefix(b, []byte("event:")) {
+			continue
+		}
+
+		// Process data: lines
+		if bytes.HasPrefix(b, []byte("data: ")) {
+			dataBytes := bytes.TrimPrefix(b, []byte("data: "))
+
+			// Check for [DONE] marker
+			if bytes.Equal(dataBytes, []byte("[DONE]")) {
+				cb(ResponseStreamEvent{}, true, nil)
+				return
+			}
+
+			// Parse JSON event
+			var event ResponseStreamEvent
+			if err := json.Unmarshal(dataBytes, &event); err != nil {
+				cb(ResponseStreamEvent{}, true, err)
+				return
+			}
+
+			// Check if this is a completion event
+			done := event.Type == "response.completed" || event.Type == "response.failed" || event.Type == "response.cancelled"
+			cb(event, done, nil)
+
+			if done {
+				return
+			}
+		}
+	}
+
+	// Check for scanner error
+	if err := scanner.Err(); err != nil {
+		cb(ResponseStreamEvent{}, true, err)
 	}
 }
 
@@ -164,8 +308,8 @@ func NewFileParamFromFilepath(path string) (f FileParam, err error) {
 	return FileParam{}, err
 }
 
-// sends HTTP request
-func (c *Client) do(method, endpoint string, params map[string]any) (response []byte, err error) {
+// sends HTTP request with context
+func (c *Client) doWithContext(ctx context.Context, method, endpoint string, params map[string]any) (response []byte, err error) {
 	if params == nil {
 		params = map[string]any{}
 	}
@@ -176,7 +320,7 @@ func (c *Client) do(method, endpoint string, params map[string]any) (response []
 	apiURL := fmt.Sprintf("%s/%s", url, endpoint)
 
 	var req *http.Request
-	if req, err = http.NewRequest(method, apiURL, nil); err == nil {
+	if req, err = http.NewRequestWithContext(ctx, method, apiURL, nil); err == nil {
 		// parameters
 		queries := req.URL.Query()
 		for k, v := range params {
@@ -211,7 +355,7 @@ func (c *Client) do(method, endpoint string, params map[string]any) (response []
 					log.Printf("API response for %s: '%s'", endpoint, string(response))
 				}
 
-				if resp.StatusCode != 200 {
+				if !isSuccessStatus(resp.StatusCode) {
 					err = fmt.Errorf("http status %d", resp.StatusCode)
 				}
 
@@ -223,18 +367,28 @@ func (c *Client) do(method, endpoint string, params map[string]any) (response []
 	return nil, err
 }
 
+// sends HTTP GET request with context
+func (c *Client) getWithContext(ctx context.Context, endpoint string, params map[string]any) (response []byte, err error) {
+	return c.doWithContext(ctx, http.MethodGet, endpoint, params)
+}
+
 // sends HTTP GET request
 func (c *Client) get(endpoint string, params map[string]any) (response []byte, err error) {
-	return c.do(http.MethodGet, endpoint, params)
+	return c.getWithContext(context.Background(), endpoint, params)
+}
+
+// sends HTTP DELETE request with context
+func (c *Client) deleteWithContext(ctx context.Context, endpoint string, params map[string]any) (response []byte, err error) {
+	return c.doWithContext(ctx, http.MethodDelete, endpoint, params)
 }
 
 // sends HTTP DELETE request
 func (c *Client) delete(endpoint string, params map[string]any) (response []byte, err error) {
-	return c.do(http.MethodDelete, endpoint, params)
+	return c.deleteWithContext(context.Background(), endpoint, params)
 }
 
-// sends HTTP POST request
-func (c *Client) post(endpoint string, params map[string]any) (response []byte, err error) {
+// sends HTTP POST request with context
+func (c *Client) postWithContext(ctx context.Context, endpoint string, params map[string]any) (response []byte, err error) {
 	if params == nil {
 		params = map[string]any{}
 	}
@@ -277,7 +431,7 @@ func (c *Client) post(endpoint string, params map[string]any) (response []byte, 
 			return nil, fmt.Errorf("error while closing multipart form data writer: %s", err)
 		}
 
-		if req, err = http.NewRequest(http.MethodPost, apiURL, body); err != nil {
+		if req, err = http.NewRequestWithContext(ctx, http.MethodPost, apiURL, body); err != nil {
 			return nil, fmt.Errorf("failed to create multipart request: %s", err)
 		}
 
@@ -287,7 +441,7 @@ func (c *Client) post(endpoint string, params map[string]any) (response []byte, 
 		// application/json
 		var serialized []byte
 		if serialized, err = json.Marshal(params); err == nil {
-			if req, err = http.NewRequest(http.MethodPost, apiURL, bytes.NewBuffer(serialized)); err != nil {
+			if req, err = http.NewRequestWithContext(ctx, http.MethodPost, apiURL, bytes.NewBuffer(serialized)); err != nil {
 				return nil, fmt.Errorf("failed to create application/json request: %s", err)
 			}
 
@@ -322,7 +476,7 @@ func (c *Client) post(endpoint string, params map[string]any) (response []byte, 
 				log.Printf("API response for %s: '%s'", endpoint, string(response))
 			}
 
-			if resp.StatusCode != 200 {
+			if !isSuccessStatus(resp.StatusCode) {
 				err = fmt.Errorf("http status %d", resp.StatusCode)
 			}
 
@@ -334,7 +488,17 @@ func (c *Client) post(endpoint string, params map[string]any) (response []byte, 
 }
 
 // sends HTTP POST request
+func (c *Client) post(endpoint string, params map[string]any) (response []byte, err error) {
+	return c.postWithContext(context.Background(), endpoint, params)
+}
+
+// sends HTTP POST request with streaming callback
 func (c *Client) postCB(endpoint string, params map[string]any, cb callback) (response []byte, err error) {
+	return c.postCBWithContext(context.Background(), endpoint, params, cb)
+}
+
+// sends HTTP POST request with streaming callback and context
+func (c *Client) postCBWithContext(ctx context.Context, endpoint string, params map[string]any, cb callback) (response []byte, err error) {
 	if params == nil {
 		params = map[string]any{}
 	}
@@ -348,7 +512,7 @@ func (c *Client) postCB(endpoint string, params map[string]any, cb callback) (re
 	// application/json
 	var serialized []byte
 	if serialized, err = json.Marshal(params); err == nil {
-		if req, err = http.NewRequest(http.MethodPost, apiURL, bytes.NewBuffer(serialized)); err != nil {
+		if req, err = http.NewRequestWithContext(ctx, http.MethodPost, apiURL, bytes.NewBuffer(serialized)); err != nil {
 			return nil, fmt.Errorf("failed to create application/json request: %s", err)
 		}
 
@@ -372,7 +536,7 @@ func (c *Client) postCB(endpoint string, params map[string]any, cb callback) (re
 	if err != nil {
 		return nil, err
 	}
-	if resp.StatusCode >= 400 {
+	if !isSuccessStatus(resp.StatusCode) {
 		defer resp.Body.Close()
 		errbody := struct {
 			Error Error `json:"error"`
@@ -381,10 +545,9 @@ func (c *Client) postCB(endpoint string, params map[string]any, cb callback) (re
 			return nil, fmt.Errorf("failed to decode error body: %v", err)
 		}
 		return nil, errbody.Error.err()
-
 	}
 
-	go stream(resp, cb)
+	go streamWithCtx(ctx, resp, cb)
 
 	return nil, nil
 }

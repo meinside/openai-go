@@ -3,6 +3,7 @@ package openai
 // https://platform.openai.com/docs/api-reference/chat
 
 import (
+	"context"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
@@ -22,7 +23,7 @@ const (
 // ToolCall struct
 type ToolCall struct {
 	// Index is not nil only in chat completion chunk object
-	Index    *int         	  `json:"index,omitempty"`
+	Index    *int             `json:"index,omitempty"`
 	ID       string           `json:"id"`
 	Type     string           `json:"type"` // == 'function'
 	Function ToolCallFunction `json:"function"`
@@ -474,4 +475,56 @@ func (c *Client) CreateChatCompletion(model string, messages []ChatMessage, opti
 	}
 
 	return ChatCompletion{}, err
+}
+
+// CreateChatCompletionWithContext creates a completion for the chat message with context support.
+//
+// https://platform.openai.com/docs/api-reference/chat/create
+func (c *Client) CreateChatCompletionWithContext(ctx context.Context, model string, messages []ChatMessage, options ChatCompletionOptions) (response ChatCompletion, err error) {
+	if options == nil {
+		options = ChatCompletionOptions{}
+	}
+	options["model"] = model
+	options["messages"] = messages
+
+	if options["stream"] != nil {
+		cb := options["stream"].(callback)
+		options["stream"] = true
+		_, err := c.postCBWithContext(ctx, "v1/chat/completions", options, cb)
+
+		return ChatCompletion{}, err
+	}
+
+	var bytes []byte
+	if bytes, err = c.postWithContext(ctx, "v1/chat/completions", options); err == nil {
+		if err = json.Unmarshal(bytes, &response); err == nil {
+			if response.Error == nil {
+				return response, nil
+			}
+
+			err = response.Error.err()
+		}
+	} else {
+		var res CommonResponse
+		if e := json.Unmarshal(bytes, &res); e == nil {
+			err = fmt.Errorf("%s: %s", err, res.Error.err())
+		}
+	}
+
+	return ChatCompletion{}, err
+}
+
+// CreateChatCompletionStreamWithContext creates a completion for the chat message with context and streaming support.
+//
+// https://platform.openai.com/docs/api-reference/chat/create
+func (c *Client) CreateChatCompletionStreamWithContext(ctx context.Context, model string, messages []ChatMessage, options ChatCompletionOptions, cb callback) (err error) {
+	if options == nil {
+		options = ChatCompletionOptions{}
+	}
+	options["model"] = model
+	options["messages"] = messages
+	options["stream"] = true
+
+	_, err = c.postCBWithContext(ctx, "v1/chat/completions", options, cb)
+	return err
 }
